@@ -17,6 +17,7 @@ import { JOBS } from "@/lib/jobs-data";
 const TITLE = "HO · A job search engine that learns";
 const DESC =
   "HO discovers jobs across the web, ranks them against real experience, writes grounded applications and learns from every outcome.";
+const [HERO_FEATURED_JOB] = JOBS;
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -78,20 +79,41 @@ const FOOTER: { h: string; links: { t: string; href: string }[] }[] = [
   },
 ];
 
-const REVERSED_HERO_JOBS: typeof JOBS = [];
-for (let index = JOBS.length - 1; index >= 0; index -= 1) {
-  const job = JOBS[index];
-  if (job) {
-    REVERSED_HERO_JOBS.push(job);
-  }
-}
-
-const HERO_JOB_ROWS = [
-  JOBS,
-  [...JOBS.slice(3), ...JOBS.slice(0, 3)],
-  REVERSED_HERO_JOBS,
+const HIRING_COMPANIES: {
+  name: string;
+  file: string;
+  darkFile?: string;
+  width: number;
+  lightenInDark?: boolean;
+}[] = [
+  { file: "google", name: "Google", width: 44 },
+  { file: "microsoft", name: "Microsoft", width: 44 },
+  { file: "meta", name: "Meta", width: 64 },
+  { file: "amazon", lightenInDark: true, name: "Amazon", width: 112 },
+  { darkFile: "apple-dark", file: "apple", name: "Apple", width: 38 },
+  { darkFile: "nvidia-dark", file: "nvidia", name: "NVIDIA", width: 60 },
+  { darkFile: "openai-dark", file: "openai", name: "OpenAI", width: 44 },
+  {
+    darkFile: "anthropic-dark",
+    file: "anthropic",
+    name: "Anthropic",
+    width: 44,
+  },
+  { file: "adobe", name: "Adobe", width: 50 },
+  { file: "netflix", name: "Netflix", width: 44 },
+  { file: "tesla", name: "Tesla", width: 44 },
+  { file: "spotify", name: "Spotify", width: 44 },
+  { file: "oracle", name: "Oracle", width: 150 },
+  { file: "salesforce", name: "Salesforce", width: 64 },
+  { file: "intel", name: "Intel", width: 44 },
+  { file: "ibm", name: "IBM", width: 104 },
+  { darkFile: "cisco-dark", file: "cisco", name: "Cisco", width: 78 },
+  { darkFile: "uber-dark", file: "uber", name: "Uber", width: 102 },
+  { file: "airbnb", name: "Airbnb", width: 42 },
+  { file: "atlassian", name: "Atlassian", width: 44 },
 ];
 
+// eslint-disable-next-line no-unused-vars
 function HeroJobCarousel() {
   const renderCards = (jobs: typeof JOBS, duplicate = false) => (
     <div
@@ -114,36 +136,57 @@ function HeroJobCarousel() {
       role="region"
       tabIndex={0}
     >
-      <div className="hero-carousel-rows">
-        {HERO_JOB_ROWS.map((jobs, rowIndex) => (
-          <div
-            aria-hidden={rowIndex === 1 ? undefined : true}
-            className={`hero-carousel-row ${rowIndex === 1 ? "hero-carousel-row--primary" : ""}`}
-            inert={rowIndex !== 1}
-            key={rowIndex}
-          >
-            <div
-              className={`hero-carousel-track ${rowIndex === 1 ? "hero-carousel-track--reverse" : ""}`}
-              style={{
-                animationDelay: `${rowIndex * -9}s`,
-                animationDuration: `${68 + rowIndex * 6}s`,
-              }}
-            >
-              {renderCards(jobs)}
-              {renderCards(jobs, true)}
-            </div>
-          </div>
-        ))}
+      <div className="hero-carousel-track">
+        {renderCards(JOBS)}
+        {renderCards(JOBS, true)}
       </div>
-      <div
-        aria-hidden="true"
-        className="hero-carousel-fade hero-carousel-fade--top"
-      />
-      <div
-        aria-hidden="true"
-        className="hero-carousel-fade hero-carousel-fade--bottom"
-      />
     </div>
+  );
+}
+
+function CompaniesHiringCarousel({ dark }: { dark: boolean }) {
+  const renderLogos = (duplicate = false) => (
+    <div
+      aria-hidden={duplicate || undefined}
+      className="logo-marquee-set"
+      inert={duplicate}
+    >
+      {HIRING_COMPANIES.map((company) => (
+        <img
+          alt={duplicate ? "" : `${company.name} logo`}
+          className={`logo-marquee-image ${company.lightenInDark ? "logo-marquee-image--lighten-in-dark" : ""}`}
+          decoding="async"
+          height={44}
+          key={company.file}
+          src={`/company-logos/${dark && company.darkFile ? company.darkFile : company.file}.svg`}
+          width={company.width}
+        />
+      ))}
+    </div>
+  );
+
+  return (
+    <section
+      aria-labelledby="companies-hiring-title"
+      className="mx-auto max-w-6xl pb-24"
+    >
+      <h2
+        className="font-pixel text-muted-foreground text-center text-sm tracking-wide"
+        id="companies-hiring-title"
+      >
+        Companies Hiring
+      </h2>
+      <div
+        aria-label="Companies hiring"
+        className="logo-marquee mt-6"
+        role="region"
+      >
+        <div className="logo-marquee-track">
+          {renderLogos()}
+          {renderLogos(true)}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -225,11 +268,14 @@ function Landing() {
               </Link>
             </div>
           </div>
-          <div className="relative mx-auto w-full max-w-2xl">
-            <HeroJobCarousel />
+          <div className="relative mx-auto w-full max-w-md">
+            {/* <HeroJobCarousel /> */}
+            {HERO_FEATURED_JOB && <JobCard job={HERO_FEATURED_JOB} i={0} />}
           </div>
         </section>
       </div>
+
+      <CompaniesHiringCarousel dark={dusk} />
 
       {/* Why */}
       <section className="mx-auto max-w-6xl pb-24">
