@@ -400,10 +400,190 @@
 .leaf-sway {
   animation: leaf-sway 6s steps(24) infinite;
 }
+
+@keyframes hero-leaf-fall {
+  0% {
+    top: -20px;
+    transform: translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.55;
+  }
+  35% {
+    top: 30%;
+    transform: translateX(16px) rotate(75deg);
+  }
+  58% {
+    top: 55%;
+    transform: translateX(-12px) rotate(165deg);
+  }
+  78% {
+    top: 76%;
+    transform: translateX(18px) rotate(255deg);
+  }
+  85% {
+    opacity: 0.55;
+  }
+  100% {
+    top: 100%;
+    transform: translateX(-6px) rotate(360deg);
+    opacity: 0;
+  }
+}
+.hero-leaf {
+  animation: hero-leaf-fall 14s steps(24) infinite;
+}
+
+.hero-carousel {
+  --hero-carousel-row-height: 23rem;
+  --hero-carousel-peek-height: 4.6rem;
+  --hero-carousel-row-gap: 1.5rem;
+  max-width: 100%;
+  height: calc(
+    var(--hero-carousel-row-height) + var(--hero-carousel-peek-height) +
+      var(--hero-carousel-peek-height) + var(--hero-carousel-row-gap) +
+      var(--hero-carousel-row-gap)
+  );
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+.hero-carousel::before,
+.hero-carousel::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  z-index: 1;
+  width: clamp(2.5rem, 6vw, 4rem);
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  mask-image: linear-gradient(90deg, black, transparent);
+  -webkit-mask-image: linear-gradient(90deg, black, transparent);
+}
+.hero-carousel::before {
+  inset-inline-start: 0;
+  background: linear-gradient(
+    90deg,
+    var(--background) 0%,
+    color-mix(in oklab, var(--background) 72%, transparent) 35%,
+    transparent
+  );
+}
+.hero-carousel::after {
+  inset-inline-end: 0;
+  mask-image: linear-gradient(270deg, black, transparent);
+  -webkit-mask-image: linear-gradient(270deg, black, transparent);
+  background: linear-gradient(
+    270deg,
+    var(--background) 0%,
+    color-mix(in oklab, var(--background) 72%, transparent) 35%,
+    transparent
+  );
+}
+.hero-carousel-track {
+  display: flex;
+  width: max-content;
+  animation: hero-carousel-scroll 72s linear infinite;
+  will-change: transform;
+  height: 100%;
+}
+.hero-carousel-track--reverse {
+  animation-direction: reverse;
+}
+.hero-carousel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hero-carousel-row-gap);
+  position: relative;
+  transform: translateY(
+      calc(var(--hero-carousel-peek-height) - var(--hero-carousel-row-height))
+    )
+    rotate(0deg);
+}
+.hero-carousel-row {
+  flex: 0 0 var(--hero-carousel-row-height);
+  height: var(--hero-carousel-row-height);
+  overflow: hidden;
+}
+.hero-carousel-group {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  height: 100%;
+  padding-right: 1rem;
+}
+.hero-carousel-slide {
+  flex: 0 0 clamp(17rem, 80vw, 23rem);
+  height: 100%;
+}
+.hero-carousel-slide > article {
+  height: 100%;
+}
+.hero-carousel-fade {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  height: var(--hero-carousel-peek-height);
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.hero-carousel-fade--top {
+  inset-block-start: 0;
+  background: linear-gradient(
+    180deg,
+    var(--background) 0%,
+    color-mix(in oklab, var(--background) 72%, transparent) 35%,
+    transparent
+  );
+  mask-image: linear-gradient(180deg, black, transparent);
+  -webkit-mask-image: linear-gradient(180deg, black, transparent);
+}
+.hero-carousel-fade--bottom {
+  inset-block-end: 0;
+  background: linear-gradient(
+    0deg,
+    var(--background) 0%,
+    color-mix(in oklab, var(--background) 72%, transparent) 35%,
+    transparent
+  );
+  mask-image: linear-gradient(0deg, black, transparent);
+  -webkit-mask-image: linear-gradient(0deg, black, transparent);
+}
+@keyframes hero-carousel-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .leaf-sway {
     animation: none;
     opacity: 0.6;
+  }
+  .hero-leaf {
+    animation: none;
+    opacity: 0;
+  }
+  .hero-carousel {
+    overflow: hidden;
+  }
+  .hero-carousel-track {
+    animation: none;
+    will-change: auto;
+  }
+  .hero-carousel-row--primary {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .hero-carousel-row--primary::-webkit-scrollbar {
+    display: none;
+  }
+  .hero-carousel-group--duplicate {
+    display: none;
   }
 }
 

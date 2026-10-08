@@ -10,12 +10,7 @@ import {
   PixelLoop,
   ThroughputChart,
 } from "@/components/pixel-diagrams";
-import {
-  ArrowIcon,
-  LeafIcon,
-  MoonIcon,
-  SparkleIcon,
-} from "@/components/pixel-icons";
+import { ArrowIcon, LeafIcon, MoonIcon } from "@/components/pixel-icons";
 import { PixelSword } from "@/components/pixel-sword";
 import { JOBS } from "@/lib/jobs-data";
 
@@ -83,8 +78,76 @@ const FOOTER: { h: string; links: { t: string; href: string }[] }[] = [
   },
 ];
 
+const REVERSED_HERO_JOBS: typeof JOBS = [];
+for (let index = JOBS.length - 1; index >= 0; index -= 1) {
+  const job = JOBS[index];
+  if (job) {
+    REVERSED_HERO_JOBS.push(job);
+  }
+}
+
+const HERO_JOB_ROWS = [
+  JOBS,
+  [...JOBS.slice(3), ...JOBS.slice(0, 3)],
+  REVERSED_HERO_JOBS,
+];
+
+function HeroJobCarousel() {
+  const renderCards = (jobs: typeof JOBS, duplicate = false) => (
+    <div
+      aria-hidden={duplicate || undefined}
+      className={`hero-carousel-group ${duplicate ? "hero-carousel-group--duplicate" : ""}`}
+      inert={duplicate}
+    >
+      {jobs.map((job, i) => (
+        <div className="hero-carousel-slide" key={job.id}>
+          <JobCard job={job} i={i} />
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div
+      aria-label="Job matches"
+      className="hero-carousel focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
+      role="region"
+      tabIndex={0}
+    >
+      <div className="hero-carousel-rows">
+        {HERO_JOB_ROWS.map((jobs, rowIndex) => (
+          <div
+            aria-hidden={rowIndex === 1 ? undefined : true}
+            className={`hero-carousel-row ${rowIndex === 1 ? "hero-carousel-row--primary" : ""}`}
+            inert={rowIndex !== 1}
+            key={rowIndex}
+          >
+            <div
+              className={`hero-carousel-track ${rowIndex === 1 ? "hero-carousel-track--reverse" : ""}`}
+              style={{
+                animationDelay: `${rowIndex * -9}s`,
+                animationDuration: `${68 + rowIndex * 6}s`,
+              }}
+            >
+              {renderCards(jobs)}
+              {renderCards(jobs, true)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div
+        aria-hidden="true"
+        className="hero-carousel-fade hero-carousel-fade--top"
+      />
+      <div
+        aria-hidden="true"
+        className="hero-carousel-fade hero-carousel-fade--bottom"
+      />
+    </div>
+  );
+}
+
 function Landing() {
-  const [heroJob] = JOBS;
   const [dusk, setDusk] = useState(false);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dusk);
@@ -92,70 +155,81 @@ function Landing() {
 
   return (
     <div className="min-h-dvh px-4 sm:px-8">
-      <header className="mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
-        <Link to="/" className="flex items-center gap-2">
-          <LeafIcon size={20} className="text-moss" />
-          <span className="font-pixel text-lg">HO</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDusk((d) => !d)}
-            aria-label={dusk ? "Switch to light" : "Switch to dark"}
-            className={`glass grid size-10 place-items-center rounded-full transition-colors ${dusk ? "text-honey" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <MoonIcon size={16} />
-          </button>
-          <Link
-            to="/app"
-            className="btn-honey group flex h-10 items-center gap-2 rounded-full px-5 text-sm font-bold"
-          >
-            Open assistant
-            <ArrowIcon
-              size={12}
-              className="transition-transform duration-200 group-hover:translate-x-1"
+      <div className="hero-stage relative isolate -mx-4 overflow-hidden px-4 sm:-mx-8 sm:px-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+        >
+          {Array.from({ length: 14 }, (_, i) => (
+            <LeafIcon
+              key={i}
+              size={12 + (i % 3) * 4}
+              className={`hero-leaf absolute top-0 ${i % 4 === 0 ? "text-honey" : "text-moss"}`}
+              style={{
+                animationDelay: `${-(i * 1.1)}s`,
+                animationDuration: `${10 + (i % 5) * 2}s`,
+                left: `${((i + 0.5) / 14) * 100}%`,
+              }}
             />
-          </Link>
+          ))}
         </div>
-      </header>
-
-      {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-24 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-        <div>
-          <h1 className="text-4xl leading-[1.15] sm:text-6xl">
-            A job search
-            <br />
-            that learns.
-          </h1>
-          <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
-            HO, the Hyperdimensional Orchestrator, scans the web for fresh
-            roles, ranks them against your real experience and tells you plainly
-            what to apply for.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-5">
+        <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
+          <Link to="/" className="flex items-center gap-2">
+            <LeafIcon size={20} className="text-moss" />
+            <span className="font-pixel text-lg">HO</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDusk((d) => !d)}
+              aria-label={dusk ? "Switch to light" : "Switch to dark"}
+              className={`glass grid size-10 place-items-center rounded-full transition-colors ${dusk ? "text-honey" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <MoonIcon size={16} />
+            </button>
             <Link
               to="/app"
-              className="btn-honey group flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
+              className="btn-honey group flex h-10 items-center gap-2 rounded-full px-5 text-sm font-bold"
             >
-              Meet your assistant
+              Open assistant
               <ArrowIcon
-                size={14}
+                size={12}
                 className="transition-transform duration-200 group-hover:translate-x-1"
               />
             </Link>
-            <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <SparkleIcon size={12} className="text-honey" />
-              12 new matches today
-            </span>
           </div>
-        </div>
-        <div className="relative mx-auto w-full max-w-md">
-          <div className="bubble-bot mb-4 ml-6 rounded-[1.25rem] rounded-bl-md px-4 py-3 text-[15px] leading-relaxed">
-            Fernwood Labs is a strong fit. Their event pipeline looks a lot like
-            your log processor.
+        </header>
+
+        {/* Hero */}
+        <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-24 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+          <div>
+            <h1 className="text-4xl leading-[1.15] sm:text-6xl">
+              A job search
+              <br />
+              that learns.
+            </h1>
+            <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
+              HO, the Hyperdimensional Orchestrator, scans the web for fresh
+              roles, ranks them against your real experience and tells you
+              plainly what to apply for.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-5">
+              <Link
+                to="/app"
+                className="btn-honey group flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
+              >
+                Meet your assistant
+                <ArrowIcon
+                  size={14}
+                  className="transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </Link>
+            </div>
           </div>
-          {heroJob === undefined ? null : <JobCard job={heroJob} i={0} />}
-        </div>
-      </section>
+          <div className="relative mx-auto w-full max-w-2xl">
+            <HeroJobCarousel />
+          </div>
+        </section>
+      </div>
 
       {/* Why */}
       <section className="mx-auto max-w-6xl pb-24">
