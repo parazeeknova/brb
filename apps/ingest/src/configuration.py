@@ -126,16 +126,18 @@ class StreamsConfig:
 
 
 def _default_redis_url() -> str:
+    from urllib.parse import quote as _quote
+
+    host = _env_str("REDIS_HOST", "127.0.0.1")
+    port = _env_str("REDIS_PORT", "6380")
+    password = _env_str("REDIS_PASSWORD", "")
+    # A set password always wins over a credential-less explicit URL.
+    if password:
+        return f"redis://:{_quote(password)}@{host}:{port}/0"
     explicit = _env_str("STREAMS_REDIS_URL", "")
     if explicit:
         return explicit
-    from urllib.parse import quote as _quote
-
-    password = _env_str("REDIS_PASSWORD", "")
-    auth = f":{_quote(password)}@" if password else ""
-    host = _env_str("REDIS_HOST", "127.0.0.1")
-    port = _env_str("REDIS_PORT", "6380")
-    return f"redis://{auth}{host}:{port}/0"
+    return f"redis://{host}:{port}/0"
 
 
 @dataclass

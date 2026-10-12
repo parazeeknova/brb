@@ -99,3 +99,13 @@ async def test_reap_stream_dlqs_hopeless_entry() -> None:
             if fields.get("origin_stream") == stream:
                 await client.xdel("ho:s:dlq", eid)
         await client.aclose()
+
+
+def test_redis_url_password_beats_bare_explicit(monkeypatch) -> None:
+    from src.stream import redis_url as mod
+
+    monkeypatch.setenv("REDIS_PASSWORD", "s3cret")
+    monkeypatch.setenv("STREAMS_REDIS_URL", "redis://127.0.0.1:6380/0")
+    assert mod.redis_url() == "redis://:s3cret@127.0.0.1:6380/0"
+    monkeypatch.delenv("REDIS_PASSWORD")
+    assert mod.redis_url() == "redis://127.0.0.1:6380/0"
