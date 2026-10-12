@@ -7,7 +7,6 @@ Proves end-to-end wiring without a full pipeline boot.
 
 from __future__ import annotations
 
-import contextlib
 import uuid
 
 import pytest
@@ -64,10 +63,9 @@ async def test_loopback_one_url_to_embedding(monkeypatch) -> None:
     seen_hash = ""
     try:
         await bus.ensure_groups()
-        # Drain test leftovers from shared streams (bounded).
-        for stream in (STREAM_DISCOVER, STREAM_RAW, STREAM_EMBED):
-            with contextlib.suppress(Exception):
-                await redis.xtrim(stream, 0)
+        # No stream trimming: these are shared production streams and this
+        # test uses unique URLs/consumers, so it neither needs nor disturbs
+        # existing entries.
 
         from src.radar.core.dedup_engine import FastDeduplicationEngine
 

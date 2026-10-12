@@ -221,19 +221,26 @@ class Pipeline:
         from src.radar.sources.tinyfish_search import tinyfish_search_tick
 
         while not self.stop.is_set():
-            total = 0
             try:
-                total += await producers.high_volume_tick(self.ctx)
-                total += await producers.mass_poller_tick(self.ctx)
-                total += await producers.github_tick(self.ctx)
-                total += await producers.dork_tick(self.ctx, self._dork_engine)
-                total += await tinyfish_search_tick(self.ctx)
-                total += await producers.board_poll_tick(self.ctx)
-                total += await producers.company_discovery_tick(self.ctx)
+                # Concurrent ticks: a slow board batch must never stall the
+                # fast producers (dorks, TinyFish, high-volume). Interval
+                # guards inside each tick prevent overlap stampedes.
+                results = await asyncio.gather(
+                    producers.high_volume_tick(self.ctx),
+                    producers.mass_poller_tick(self.ctx),
+                    producers.github_tick(self.ctx),
+                    producers.dork_tick(self.ctx, self._dork_engine),
+                    tinyfish_search_tick(self.ctx),
+                    producers.board_poll_tick(self.ctx),
+                    producers.company_discovery_tick(self.ctx),
+                    return_exceptions=True,
+                )
+                total = sum(r for r in results if isinstance(r, int))
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.warning(f"Producer tick failed: {exc}")
+                total = 0
             if total == 0:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self.stop.wait(), timeout=1.0)
