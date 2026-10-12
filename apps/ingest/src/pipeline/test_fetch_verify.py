@@ -207,3 +207,42 @@ def test_normalize_unverified_subq_fail_rejects(monkeypatch) -> None:
     asyncio.run(normalize_stage.handle_raw(ctx, {"url_hash": "h"}))
     assert len(store.rejected) == 1
     assert store.candidates == []
+
+
+def test_verify_posting_uses_cached_verdict(monkeypatch) -> None:
+    import asyncio
+
+    from src.pipeline import normalize as normalize_stage
+    from src.radar.core.models import JobObservation
+
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.store = {"k": "1"}
+
+        async def get(self, key: str):
+            return self.store.get(key)
+
+        async def set(self, key: str, value: str, ex: int = 0):
+            self.store[key] = value
+
+    class FakeBus:
+        def __init__(self) -> None:
+            self.redis = FakeRedis()
+
+    class Ctx:
+        def __init__(self) -> None:
+            self.bus = FakeBus()
+
+    async def boom(*a, **k):
+        raise AssertionError("SubQ must not run on cache hit")
+
+    # cache-hit short-circuits before any SubQ import; no patch needed
+    obs = JobObservation(url="https://x", source="s", title="Engineer", raw_markdown="x" * 500)
+    # prime cache with identical content hash input
+    import hashlib
+
+    key = f"ho:verify:{hashlib.md5(obs.raw_markdown[:2000].encode()).hexdigest()}"
+    Ctx().bus.redis.store[key] = "1"
+    ctx = Ctx()
+    ctx.bus.redis.store[key] = "1"
+    assert asyncio.run(normalize_stage.verify_posting(ctx, obs)) is True

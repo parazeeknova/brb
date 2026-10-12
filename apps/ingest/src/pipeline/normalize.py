@@ -29,15 +29,34 @@ logger = get_logger("pipeline_normalize")
 SUBQ_VERIFY_THRESHOLD = 0.7
 
 
+def _looks_structured(obs: JobObservation) -> bool:
+    """Deterministic trust: resolved company + body + http apply link."""
+    if not obs.extra.get("company_slug"):
+        return False
+    if len(obs.title.strip()) < 4 or len(obs.raw_markdown) < 1000:
+        return False
+    return bool(obs.url) and obs.url.startswith("http")
+
+
 async def verify_posting(ctx: Any, obs: JobObservation) -> bool:
     """SubQ real-posting judgment for non-ATS pages (fail-open when offline).
 
     Deterministic pre-checks first (title + company + substance) so obvious
-    junk never spends model budget. Returns True when verified.
+    junk never spends model budget. Verdicts cache by content hash: the same
+    JD cross-posted across boards judges once.
     """
     title = (obs.title or "").strip()
     if len(title) < 4 or len(obs.raw_markdown) < 400:
         return False
+    import hashlib
+
+    content_key = f"ho:verify:{hashlib.md5(obs.raw_markdown[:2000].encode()).hexdigest()}"
+    try:
+        cached = await ctx.bus.redis.get(content_key)
+        if cached is not None:
+            return cached == "1"
+    except Exception:
+        pass
     try:
         from src.llm.subq import is_available, is_real_posting
     except Exception:
@@ -55,7 +74,10 @@ async def verify_posting(ctx: Any, obs: JobObservation) -> bool:
         prob = await is_real_posting(title, company, obs.raw_markdown)
     except Exception:
         return False
-    return prob is not None and prob >= SUBQ_VERIFY_THRESHOLD
+    verdict = prob is not None and prob >= SUBQ_VERIFY_THRESHOLD
+    with contextlib.suppress(Exception):
+        await ctx.bus.redis.set(content_key, "1" if verdict else "0", ex=7 * 86400)
+    return verdict
 
 
 def _obs_from_row(row: dict[str, Any]) -> JobObservation:
@@ -98,6 +120,13 @@ async def normalize_one(ctx: Any, url_hash: str) -> tuple[str, str] | None:
     # workday APIs carry title+location but not always full bodies).
     if (not obs.raw_markdown or len(obs.raw_markdown) < 100) and not is_verified:
         return None
+    # Structured fast-path: resolved company + substantive body + real apply
+    # URL is verdict enough — no model call. SubQ judges only the ambiguous
+    # middle (content without provenance).
+    if not is_verified and _looks_structured(obs):
+        is_verified = True
+        with contextlib.suppress(Exception):
+            await ctx.store.set_observation_verified(url_hash, "structured")
     pid = posting_id(obs)
     obs.observed_at = time.time()
 
