@@ -42,6 +42,8 @@ services:
     restart: "no"
     ports:
       - "5443:5432"
+    # 2 pipeline procs x 48 pooled conns + dashboards < 200.
+    command: postgres -cmax_connections=200
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
