@@ -58,3 +58,4 @@ artifacts/
 node_modules/
 lerna-debug.log
 .nx/
+dist/

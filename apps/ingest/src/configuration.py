@@ -94,42 +94,36 @@ class RateLimitConfig:
 
 
 @dataclass
-class SchedulerConfig:
-    """WorkScheduler / CrawlFrontier settings."""
-
-    worker_count: int = field(default_factory=lambda: _env_int("SCHEDULER_WORKERS", 4))
-    max_queue_size: int = field(default_factory=lambda: _env_int("MAX_QUEUE_SIZE", 500))
-    lease_ttl: float = field(default_factory=lambda: _env_float("LEASE_TTL", 120.0))
-    heartbeat_interval: float = field(
-        default_factory=lambda: _env_float("HEARTBEAT_INTERVAL", 30.0)
-    )
-    drain_timeout: float = field(default_factory=lambda: _env_float("DRAIN_TIMEOUT", 30.0))
-    batch_max: int = field(default_factory=lambda: _env_int("BATCH_MAX", 3))
-    consecutive_failure_threshold: int = field(
-        default_factory=lambda: _env_int("CONSECUTIVE_FAILURE_THRESHOLD", 5)
-    )
-    consecutive_empty_threshold: int = field(
-        default_factory=lambda: _env_int("CONSECUTIVE_EMPTY_THRESHOLD", 20)
-    )
-
-
-@dataclass
-class EventBusConfig:
-    """EventBus TTL-cache settings."""
-
-    cache_maxsize: int = field(default_factory=lambda: _env_int("EVENT_CACHE_MAXSIZE", 10000))
-    cache_ttl: float = field(default_factory=lambda: _env_float("EVENT_CACHE_TTL", 3600.0))
-
-
-@dataclass
 class PipelineConfig:
-    """Orchestrator pipeline settings."""
+    """Continuous stream-pipeline settings (no sweeps, no batches).
 
-    target: int = field(default_factory=lambda: _env_int("PIPELINE_TARGET", 15))
-    max_scrape_workers: int = field(default_factory=lambda: _env_int("MAX_SCRAPE_WORKERS", 18))
-    match_concurrency: int = field(default_factory=lambda: _env_int("MATCH_CONCURRENCY", 24))
-    verify_concurrency: int = field(default_factory=lambda: _env_int("VERIFY_CONCURRENCY", 20))
+    Each stage runs forever as Redis-Streams consumer groups; parallelism
+    comes from consumer counts, backpressure from stream MAXLEN caps and
+    BLOCK reads. sweep_interval is kept as the source-lane base tick
+    (sources.py lane scheduling), not as a loop sleep.
+    """
+
+    fetch_workers: int = field(default_factory=lambda: _env_int("FETCH_WORKERS", 8))
+    normalize_workers: int = field(default_factory=lambda: _env_int("NORMALIZE_WORKERS", 8))
+    embed_workers: int = field(default_factory=lambda: _env_int("EMBED_WORKERS", 4))
+    stream_maxlen: int = field(default_factory=lambda: _env_int("STREAM_MAXLEN", 5000))
+    block_ms: int = field(default_factory=lambda: _env_int("STREAM_BLOCK_MS", 5000))
     sweep_interval: float = field(default_factory=lambda: _env_float("SWEEP_INTERVAL", 5.0))
+
+
+@dataclass
+class StreamsConfig:
+    """Redis Streams transport for the pipeline (motion, not state).
+
+    Postgres remains the record store; streams carry small routing payloads
+    (urls, hashes, ids) between always-on stage consumer groups.
+    """
+
+    redis_url: str = field(
+        default_factory=lambda: _env_str("STREAMS_REDIS_URL", "redis://127.0.0.1:6380/0")
+    )
+    claim_idle_ms: int = field(default_factory=lambda: _env_int("STREAM_CLAIM_IDLE_MS", 300000))
+    max_deliveries: int = field(default_factory=lambda: _env_int("STREAM_MAX_DELIVERIES", 5))
 
 
 @dataclass
@@ -312,52 +306,13 @@ def _load_persona_file() -> str:
 
 @dataclass
 class CandidateConfig:
-    """Candidate-specific job-matching parameters — configurable by persona."""
+    """Legacy single-persona grounding (persona text only; matching moved out).
 
-    persona: str = field(default_factory=_load_persona_file)
-    min_salary: str = field(
-        default_factory=lambda: _env_str("CANDIDATE_MIN_SALARY", "70K INR/month")
-    )
-
-
-@dataclass
-class LlmQueueConfig:
-    """LLM work-queue rate-limiting and budget controls for the radar pipeline.
-
-    Defaults stay under the provider's real cap (GeneralCompute: 100 RPM /
-    200K TPM) so the sweep never trips a 429 and stalls a single application
-    on a 30-40s cooldown. The queue reserves most of it; radar's shared budget
-    is a fraction, and autofill's per-question answers use the interactive
-    reserved lane.
+    Salary/location/authorization filters are gone: the corpus keeps every
+    role and the web app filters per user.
     """
 
-    requests_per_minute: int = field(default_factory=lambda: _env_int("LLM_QUEUE_RPM", 85))
-    estimated_tokens_per_minute: int = field(
-        default_factory=lambda: _env_int("LLM_QUEUE_TPM", 180000)
-    )
-    max_in_flight: int = field(default_factory=lambda: _env_int("LLM_QUEUE_MAX_IN_FLIGHT", 12))
-    match_token_budget: int = field(
-        default_factory=lambda: _env_int("LLM_QUEUE_MATCH_TOKENS", 2000)
-    )
-    vector_gate_enabled: bool = field(
-        default_factory=lambda: _env_bool("LLM_QUEUE_VECTOR_GATE", True)
-    )
-    vector_gate_threshold: float = field(
-        default_factory=lambda: _env_float("LLM_QUEUE_VECTOR_THRESHOLD", 0.35)
-    )
-    cooldown_seconds: float = field(default_factory=lambda: _env_float("LLM_QUEUE_COOLDOWN", 30.0))
-    jitter_seconds: float = field(default_factory=lambda: _env_float("LLM_QUEUE_JITTER", 5.0))
-    # Shared provider budget: the provider's per-minute quota (100 RPM / 200K
-    # TPM). Radar reserves a fraction of it; Redis makes the budget hold across
-    # radar processes (master + workers) atomically.
-    budget_radar_rpm: int = field(default_factory=lambda: _env_int("LLM_BUDGET_RADAR_RPM", 60))
-    budget_radar_tpm: int = field(default_factory=lambda: _env_int("LLM_BUDGET_RADAR_TPM", 120000))
-    budget_redis_url: str = field(
-        default_factory=lambda: _env_str("LLM_BUDGET_REDIS_URL", "redis://127.0.0.1:6380/1")
-    )
-    budget_redis_enabled: bool = field(
-        default_factory=lambda: _env_bool("LLM_BUDGET_REDIS_ENABLED", True)
-    )
+    persona: str = field(default_factory=_load_persona_file)
 
 
 @dataclass
@@ -369,22 +324,6 @@ class RadarConfig:
     )
     poll_low_freq_seconds: float = field(
         default_factory=lambda: _env_float("RADAR_LOW_FREQ_POLL", 1800.0)
-    )
-    max_candidates_per_sweep: int = field(
-        default_factory=lambda: _env_int("RADAR_MAX_CANDIDATES", 300)
-    )
-    # Stop-after: when the gate has passed at least this many candidates in a
-    # sweep, the master loop ends (overnight runs usually want a bounded batch
-    # — e.g. 20 gated jobs — not an endless loop). 0 = no early stop.
-    stop_after_gated: int = field(default_factory=lambda: _env_int("RADAR_STOP_AFTER_GATED", 0))
-    # Work-session epoch target (the review's pivot #3): the radar keeps
-    # discovering/ranking into the application reservoir, but a SESSION completes
-    # when at least this many applications are CONFIRMED SUBMITTED (applied_at
-    # set — NOT attempts, deferred, captcha, or duplicates). On completion the
-    # loop finalizes the session (learning update + re-rank of the remaining
-    # reservoir). 0 = disable (bounded by stop_after_gated instead).
-    session_application_target: int = field(
-        default_factory=lambda: _env_int("RADAR_SESSION_APPLICATION_TARGET", 0)
     )
     urgent_window_hours: int = field(
         default_factory=lambda: _env_int("RADAR_URGENT_WINDOW_HOURS", 48)
@@ -399,9 +338,6 @@ class RadarConfig:
     discovery_source: str = field(
         default_factory=lambda: _env_str("DISCOVERY_SOURCE", "all").lower()
     )
-    # US roles are only reachable for this candidate when remote; onsite US
-    # postings (which require visa sponsorship to attend) are rejected.
-    us_only_remote: bool = field(default_factory=lambda: _env_bool("RADAR_US_ONLY_REMOTE", True))
 
 
 @dataclass
@@ -425,9 +361,8 @@ class Config:
     http: HttpConfig = field(default_factory=HttpConfig)
     retry: RetryConfig = field(default_factory=RetryConfig)
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
-    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
-    event_bus: EventBusConfig = field(default_factory=EventBusConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
+    streams: StreamsConfig = field(default_factory=StreamsConfig)
     neo4j: Neo4jConfig = field(default_factory=Neo4jConfig)
     postgres: PostgresConfig = field(default_factory=PostgresConfig)
     searxng: SearXNGCongfig = field(default_factory=SearXNGCongfig)
@@ -436,7 +371,6 @@ class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
     linkedin_guest: LinkedinGuestConfig = field(default_factory=LinkedinGuestConfig)
     candidate: CandidateConfig = field(default_factory=CandidateConfig)
-    llm_queue: LlmQueueConfig = field(default_factory=LlmQueueConfig)
     radar: RadarConfig = field(default_factory=RadarConfig)
     ats: ATSCrawlerConfig = field(default_factory=ATSCrawlerConfig)
 
@@ -450,12 +384,8 @@ class Config:
             problems.append("http.max_connections must be > 0")
         if self.retry.max_retries < 0:
             problems.append("retry.max_retries must be >= 0")
-        if self.scheduler.worker_count <= 0:
-            problems.append("scheduler.worker_count must be > 0")
         if self.postgres.min_pool > self.postgres.max_pool:
             problems.append("postgres.min_pool must be <= max_pool")
-        if self.event_bus.cache_maxsize <= 0:
-            problems.append("event_bus.cache_maxsize must be > 0")
 
         return problems
 
@@ -470,18 +400,11 @@ class Config:
                 "max_retries": self.retry.max_retries,
                 "base_delay": self.retry.base_delay,
             },
-            "scheduler": {
-                "worker_count": self.scheduler.worker_count,
-                "max_queue_size": self.scheduler.max_queue_size,
-                "lease_ttl": self.scheduler.lease_ttl,
-            },
-            "event_bus": {
-                "cache_maxsize": self.event_bus.cache_maxsize,
-                "cache_ttl": self.event_bus.cache_ttl,
-            },
             "pipeline": {
-                "max_scrape_workers": self.pipeline.max_scrape_workers,
-                "match_concurrency": self.pipeline.match_concurrency,
+                "fetch_workers": self.pipeline.fetch_workers,
+                "normalize_workers": self.pipeline.normalize_workers,
+                "embed_workers": self.pipeline.embed_workers,
+                "stream_maxlen": self.pipeline.stream_maxlen,
             },
             "postgres": {
                 "min_pool": self.postgres.min_pool,
@@ -489,11 +412,6 @@ class Config:
             },
             "llm": {
                 "model": self.llm.model,
-            },
-            "llm_queue": {
-                "rpm": self.llm_queue.requests_per_minute,
-                "tpm": self.llm_queue.estimated_tokens_per_minute,
-                "max_in_flight": self.llm_queue.max_in_flight,
             },
             "radar": {
                 "urgent_window_hours": self.radar.urgent_window_hours,

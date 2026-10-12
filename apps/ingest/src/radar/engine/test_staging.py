@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from src.radar.core.governor import (
-    _state as _gs,
-)
 from src.radar.core.models import JobObservation
 from src.radar.sources.discovery import is_aggregator_domain
 
@@ -94,30 +91,6 @@ class TestDomainNormalization:
         is_snapshot_delta = obs.extra.get("is_snapshot_delta", False)
         can_be_urgent = is_snapshot_delta and is_official
         assert can_be_urgent, "Official ATS deltas should be URGENT"
-
-
-class TestGovernorInteractiveLane:
-    def test_interactive_reserved_capacity(self) -> None:
-        """Interactive calls consume reserved lane, background calls preserve it."""
-        import time
-
-        _gs.reserved_max_per_minute = 3
-        _gs.reserved_requests_this_minute = 0
-        _gs.rpm_limit = 10
-        _gs.requests_this_minute = 7  # Non-interactive at 7/10
-        _gs.window_start = time.monotonic()
-        _gs.cooldown_until = 0.0
-
-        # Background call when main budget is mostly used but reserved remains
-        can_acquire_bg = _gs.requests_this_minute < _gs.rpm_limit - _gs.reserved_max_per_minute
-        can_acquire_interactive = _gs.reserved_requests_this_minute < _gs.reserved_max_per_minute
-
-        assert not can_acquire_bg  # 7 >= 7, so background blocked
-        assert can_acquire_interactive  # 0 < 3, interactive allowed
-
-        # Reset
-        _gs.requests_this_minute = 0
-        _gs.reserved_requests_this_minute = 0
 
 
 class TestSourceTypeClassification:

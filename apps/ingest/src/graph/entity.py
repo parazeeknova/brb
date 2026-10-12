@@ -20,11 +20,10 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
-from src.configuration import get_config
 
 
 def _default_lease_ttl() -> float:
-    return get_config().scheduler.lease_ttl
+    return 120.0
 
 
 class NodeType(StrEnum):

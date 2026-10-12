@@ -34,6 +34,27 @@ def count_of(pattern: str) -> int:
         return -1
 
 
+async def stream_depths() -> str:
+    """Redis stream depths, best-effort (empty when redis is down)."""
+    try:
+        from redis.asyncio import Redis
+        from src.stream.bus import ALL_STREAMS
+
+        client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+        try:
+            parts = []
+            for stream in ALL_STREAMS:
+                try:
+                    parts.append(f"{stream.rsplit(':', 1)[-1]}={await client.xlen(stream)}")
+                except Exception:
+                    continue
+            return "streams: " + " ".join(parts)
+        finally:
+            await client.aclose()
+    except Exception:
+        return "streams: unavailable"
+
+
 async def check_once(store: MemoryStore) -> dict:
     async with store._pool.acquire() as c:
         return {
@@ -43,9 +64,6 @@ async def check_once(store: MemoryStore) -> dict:
             ),
             "near_miss": await c.fetchval(
                 "SELECT count(*) FROM radar_candidates WHERE eligibility='near_miss'"
-            ),
-            "queue_pending": await c.fetchval(
-                "SELECT count(*) FROM llm_queue WHERE status IN ('pending','processing')"
             ),
             "obs": await c.fetchval("SELECT count(*) FROM job_observations"),
         }
@@ -58,21 +76,15 @@ async def main() -> None:
     last_report = 0
     while True:
         try:
-            orch = count_of(r"radar[.]engine[.]orchestrator")
-            embed = count_of(r"scripts/embed/embed_obs")
-            wd = count_of(r"scripts/tools/watchdog")
+            procs = count_of(r"src[.]pipeline[.]run")
             stats = await check_once(store)
+            streams = await stream_depths()
             line = (
-                f"orch={orch} embed={embed} watchdog={wd} "
+                f"pipeline={procs} "
                 f"accepted={stats['accepted']} near_miss={stats['near_miss']} "
-                f"queue={stats['queue_pending']} embedded={stats['embedded']} "
-                f"obs={stats['obs']}"
+                f"embedded={stats['embedded']} obs={stats['obs']} {streams}"
             )
-            if (
-                ticks % REPORT_EVERY == 0
-                or stats["queue_pending"] > 500
-                or stats["queue_pending"] % 50 == 0
-            ):
+            if ticks % REPORT_EVERY == 0:
                 logger.info("MONITOR " + line)
             if stats["accepted"] != last_report:
                 logger.info(f"MONITOR accepted delta: {stats['accepted']} (was {last_report})")

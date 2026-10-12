@@ -36,12 +36,7 @@ _MONITORED_SOURCE_PREFIXES = (
 _GATE_ORDER: list[str] = [
     "url_quality",
     "url_duplicate",
-    "title_seniority",
     "role_family",
-    "salary",
-    "explicit_experience",
-    "explicit_ineligibility",
-    "work_location",
     "source_freshness",
 ]
 
@@ -184,21 +179,6 @@ def gate_url_duplicate(
         return RejectionReason.URL_DUPLICATE
     return None
 
-
-_SENIOR_TITLE_PATTERNS = [
-    (r"\bsenior\b", "senior"),
-    (r"\bsr\.?\b", "senior"),
-    (r"\bstaff\b", "staff"),
-    (r"\bdirector\b", "director"),
-    (r"\bvp\b", "vp"),
-    (r"\bvice\s+president\b", "vp"),
-    (r"\bhead\s+of\b", "head_of"),
-    (r"\bprincipal\b", "principal"),
-    (r"\barchitect\b", "architect"),
-    (r"\bmanager\b", "manager"),
-]
-
-_MANAGER_WHITELIST = re.compile(r"\b(product|project|program|community)\b", re.IGNORECASE)
 
 _NON_TECH_TITLE_PATTERNS = [
     r"\bcontent\s+creator\b",
@@ -418,41 +398,6 @@ _NON_TECH_TITLE_PATTERNS = [
 ]
 
 
-def gate_title_seniority(
-    obs: JobObservation,
-    candidate: JobCandidate,
-    known_hashes: set[str],
-    last_seen: dict[str, float],
-) -> RejectionReason | None:
-    title = obs.title.lower()
-    snippet = obs.snippet.lower()
-    combined = f"{title} {snippet} {obs.raw_markdown[:1000]}".lower()
-
-    for pat in _NON_TECH_TITLE_PATTERNS:
-        if re.search(pat, combined):
-            return RejectionReason.TITLE_NON_TECHNICAL
-
-    # Semantic Override: Early-career / junior indicators override senior keyword drops
-    early_career_override = re.search(
-        r"\b(?:intern|internship|co-?op|coop|new\s*grad|entry.level|junior|early.career|graduate|0-1|0-2|0-3|1-2|1-3|associate)\b",
-        combined,
-    )
-    if early_career_override:
-        return None
-
-    for pat, _label in _SENIOR_TITLE_PATTERNS:
-        if re.search(pat, title):
-            if _label == "manager" and _MANAGER_WHITELIST.search(title):
-                continue
-            return (
-                RejectionReason.TITLE_SENIOR
-                if _label != "manager"
-                else RejectionReason.TITLE_MANAGER
-            )
-
-    return None
-
-
 _TECH_ROLE_MAP: list[tuple[str, RoleFamily]] = [
     (
         r"\b(?:backend|back-end|back\s*end)\b",
@@ -500,131 +445,24 @@ def gate_role_family(
     known_hashes: set[str],
     last_seen: dict[str, float],
 ) -> RejectionReason | None:
+    """Classify, never reject: the corpus covers every role, level, and
+    function (junior -> staff, engineering -> design -> data -> ops)."""
     combined = f"{obs.title} {obs.snippet} {obs.raw_markdown[:2000]}".lower()
 
     for pat, family in _TECH_ROLE_MAP:
         if re.search(pat, combined):
             candidate.role_family = family
-            candidate.normalized_role = obs.title or "Software Engineer"
+            candidate.normalized_role = obs.title or "Unknown Role"
             return None
 
     for pat in _NON_TECH_TITLE_PATTERNS:
         if re.search(pat, combined):
-            return RejectionReason.ROLE_FAMILY_MISMATCH
+            candidate.role_family = RoleFamily.NON_TECHNICAL
+            candidate.normalized_role = obs.title or "Unknown Role"
+            return None
 
-    # Resilient Fallback: Any technical posting defaults to GENERAL_SWE instead of dropping
-    candidate.role_family = RoleFamily.GENERAL_SWE
-    candidate.normalized_role = obs.title or "Software Engineer"
-    return None
-
-
-_EXPLICIT_EXPERIENCE_PATTERNS = [
-    (re.compile(r"\b(?:3|4|5|6|7|8|9|10)\s*\+\s*years?\b", re.IGNORECASE), "years"),
-    (re.compile(r"\b\d{2,}\s*\+\s*years?\b", re.IGNORECASE), "many_years"),
-    (re.compile(r"\bph\.?d\b", re.IGNORECASE), "phd"),
-    (re.compile(r"\bdoctorate\b", re.IGNORECASE), "doctorate"),
-    (re.compile(r"\bpostdoc\b", re.IGNORECASE), "postdoc"),
-    # Masters/graduate-degree requirements: the candidate holds a bachelor's,
-    # so a JD that REQUIRES a master's degree must be rejected (the user's
-    # 'why is it filling Masters/PhD jobs' complaint).
-    (re.compile(r"\bmaster'?s?\s+(degree|degree required|or ph\.?d)\b", re.IGNORECASE), "masters"),
-    (re.compile(r"\b(master'?s?|graduate)\s+degree\s+required\b", re.IGNORECASE), "masters"),
-    (re.compile(r"\brequires?\s+a\s+(master'?s?|graduate)\s+degree\b", re.IGNORECASE), "masters"),
-    (re.compile(r"\bclearance\b", re.IGNORECASE), "clearance"),
-    (re.compile(r"\bcitizenship\s*required\b", re.IGNORECASE), "citizenship"),
-]
-
-
-def gate_explicit_experience(
-    obs: JobObservation,
-    candidate: JobCandidate,
-    known_hashes: set[str],
-    last_seen: dict[str, float],
-) -> RejectionReason | None:
-    text = f"{obs.title} {obs.snippet} {obs.raw_markdown[:5000]}".lower()
-
-    # Negation & Early-Career Override: "0-2 years", "don't need 5 years", "not required"
-    negation_or_junior = re.search(
-        r"\b(?:0-1|0-2|0-3|1-2|1-3|0\s+to\s+[23]|don'?t\s+need|no\s+experience|not\s+required|entry\s+level)\b",
-        text,
-    )
-    if negation_or_junior:
-        return None
-
-    for pat, label in _EXPLICIT_EXPERIENCE_PATTERNS:
-        if pat.search(text):
-            if label in ("phd", "doctorate", "postdoc", "masters"):
-                return RejectionReason.EXPERIENCE_PHD
-            if label in ("clearance", "citizenship"):
-                return RejectionReason.CLEARANCE_REQUIRED
-            return RejectionReason.EXPERIENCE_HIGH
-
-    return None
-
-
-def gate_explicit_ineligibility(
-    obs: JobObservation,
-    candidate: JobCandidate,
-    known_hashes: set[str],
-    last_seen: dict[str, float],
-) -> RejectionReason | None:
-    """Detect clear no-gos: no-sponsorship, citizenship-only, explicit ineligibility."""
-    text = f"{obs.title} {obs.snippet} {obs.raw_markdown[:5000]}".lower()
-
-    _no_sponsor_pats = [
-        r"\b(?:no|not\s+able\s+to)\s+sponsor\b",
-        r"\bdoes\s+not\s+sponsor\b",
-        r"\bunable\s+to\s+sponsor\b",
-        r"\bsponsorship\s*(?:is|)\s*not\s+(?:available|provided|offered)\b",
-        r"\bmust\s+be\s+(?:a\s+)?(?:us|u\.s\.|united\s+states)\s+(?:citizen|person)\b",
-        r"\b(?:us|u\.s\.)\s+citizens?\s+only\b",
-        r"\bno\s+(?:visa|h1b|h-1b)\s+sponsorship\b",
-    ]
-    for pat in _no_sponsor_pats:
-        if re.search(pat, text):
-            return RejectionReason.NO_SPONSORSHIP
-
-    return None
-
-
-# Location detection for the work-location gate. The candidate (India, per the
-# persona) may work remote anywhere and onsite in India only; any ONSITE role
-# in a foreign country (esp. US, which needs an H-1B) must be rejected before
-# the browser ever opens. This was the 'why is it filling onsite-USA jobs'
-# complaint: US_ONSITE existed as a rejection reason but no gate produced it.
-_US_ONSITE_PATTERNS = [
-    r"\b(?:san francisco|new york|nyc|seattle|austin|boston|chicago|remote\s*-\s*us)\b",
-    r"\b(?:us|u\.s\.|united states|usa)\b.{0,40}\bonsite\b",
-    r"\bonsite\b.{0,40}\b(?:us|u\.s\.|united states|usa)\b",
-]
-_FOREIGN_ONSITE_PATTERNS = [
-    r"\bonsite\b.{0,60}\b(?:london|berlin|paris|amsterdam|singapore|toronto|dubai|sydney|"
-    r"stockholm|zurich|munich|warsaw|tel aviv|barcelona|madrid|milan|oslo|helsinki|copenhagen)\b",
-]
-
-
-def gate_work_location(
-    obs: JobObservation,
-    candidate: JobCandidate,
-    known_hashes: set[str],
-    last_seen: dict[str, float],
-) -> RejectionReason | None:
-    """Reject ONSITE roles in countries the candidate cannot work in.
-
-    Policy: the candidate may work REMOTE anywhere and ONSITE in India only.
-    An onsite role explicitly in the US (or a foreign country) needs a work
-    visa the candidate doesn't hold — reject before filling.
-    """
-    text = f"{obs.title} {obs.snippet} {obs.raw_markdown[:4000]}".lower()
-    # Remote-everywhere roles are fine even when a city is named.
-    if re.search(r"\bremote\b", text) and not re.search(r"\bonsite\b", text):
-        return None
-    for pat in _US_ONSITE_PATTERNS:
-        if re.search(pat, text):
-            return RejectionReason.US_ONSITE
-    for pat in _FOREIGN_ONSITE_PATTERNS:
-        if re.search(pat, text):
-            return RejectionReason.US_ONSITE  # foreign onsite = needs visa
+    candidate.role_family = RoleFamily.UNKNOWN
+    candidate.normalized_role = obs.title or "Unknown Role"
     return None
 
 
@@ -737,57 +575,12 @@ def _parse_freshness_evidence(evidence: str | None) -> float | None:
     return None
 
 
-def gate_salary_check(
-    obs: JobObservation,
-    candidate: JobCandidate,
-    known_hashes: set[str],
-    last_seen: dict[str, float],
-) -> RejectionReason | None:
-    return None
-
-
 _GATE_HANDLERS: dict[str, Any] = {
     "url_quality": gate_url_quality,
     "url_duplicate": gate_url_duplicate,
-    "title_seniority": gate_title_seniority,
     "role_family": gate_role_family,
-    "salary": gate_salary_check,
-    "explicit_experience": gate_explicit_experience,
-    "explicit_ineligibility": gate_explicit_ineligibility,
-    "work_location": gate_work_location,
     "source_freshness": gate_source_freshness,
 }
-
-
-def prefilter_observation(
-    obs: JobObservation, known_hashes: set[str], last_seen: dict[str, float]
-) -> bool:
-    """Cheap title/url pre-check for the corpus drain (no scrape required).
-
-    Runs the synchronous gates that only need the URL + title/snippet, so the
-    drain can order never-gated observations by *learned* pass probability while
-    hard-excluding anything these gates would reject. Returns True if the
-    observation survives (candidate may still fail later gates on full content).
-    """
-    try:
-        candidate = JobCandidate(
-            canonical_id=f"prefilter:{obs.url}",
-            source=obs.source,
-            direct_apply_url=obs.url,
-            normalized_company=_extract_company(obs),
-            normalized_role=obs.title or "",
-            normalized_location="Remote",
-        )
-        for gate_name in ("url_quality", "title_seniority", "role_family"):
-            handler = _GATE_HANDLERS.get(gate_name)
-            if handler is None:
-                continue
-            result = handler(obs, candidate, known_hashes, last_seen)
-            if isinstance(result, RejectionReason):
-                return False
-    except Exception:
-        return False
-    return True
 
 
 _REJECTION_DESCRIPTIONS: dict[RejectionReason, str] = {

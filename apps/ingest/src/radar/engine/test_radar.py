@@ -11,9 +11,7 @@ from src.radar.core.extractors import (
     extract_github_index_markdown,
 )
 from src.radar.core.gates import (
-    gate_explicit_experience,
     gate_role_family,
-    gate_title_seniority,
     gate_url_duplicate,
     gate_url_quality,
     run_gates,
@@ -193,142 +191,45 @@ class TestGatesUrlDuplicate:
         assert result == RejectionReason.URL_DUPLICATE
 
 
-class TestGatesTitleSeniority:
+class TestAllTitlesPass:
+    """Corpus covers every level and function: nothing title-based rejects."""
+
     def make_obs(self, title: str) -> JobObservation:
         return JobObservation(
             url="https://example.com/job/1", source="test", title=title, snippet=""
         )
 
-    def test_senior_rejected(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Senior Software Engineer"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
+    def make_cand(self) -> JobCandidate:
+        return JobCandidate(
+            canonical_id="x",
+            source="test",
+            direct_apply_url="",
+            normalized_company="",
+            normalized_role="",
+            normalized_location="",
         )
-        assert result == RejectionReason.TITLE_SENIOR
 
-    def test_staff_rejected(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Staff Engineer"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.TITLE_SENIOR
+    def test_all_levels_and_functions_pass(self) -> None:
+        import asyncio
 
-    def test_manager_rejected(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Engineering Manager"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.TITLE_MANAGER
-
-    def test_product_manager_passes(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Product Manager"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result is None
-
-    def test_internship_passes(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Software Engineering Intern"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result is None
-
-    def test_newgrad_passes(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("New Grad Software Engineer"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result is None
-
-    def test_junior_passes(self) -> None:
-        result = gate_title_seniority(
-            self.make_obs("Junior Developer"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result is None
-
-    def test_non_tech_rejected(self) -> None:
-        obs = JobObservation(
-            url="https://example.com", source="test", title="Content Creator", snippet=""
-        )
-        result = gate_title_seniority(
-            obs,
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.TITLE_NON_TECHNICAL
+        titles = [
+            "Senior Software Engineer",
+            "Staff Engineer",
+            "Engineering Manager",
+            "Product Manager",
+            "Product Designer",
+            "Software Engineering Intern",
+            "New Grad Software Engineer",
+            "Junior Developer",
+            "Content Creator",
+            "Account Manager",
+            "VP of Engineering",
+            "Data Analyst",
+        ]
+        for title in titles:
+            obs = self.make_obs(title)
+            result, _ = asyncio.run(run_gates(obs, set(), {}))
+            assert result is not None, f"{title} should pass, got rejection"
 
 
 class TestGatesRoleFamily:
@@ -432,7 +333,7 @@ class TestGatesRoleFamily:
         assert result is None
         assert candidate.role_family == RoleFamily.DEVELOPER_TOOLS
 
-    def test_non_tech_rejected(self) -> None:
+    def test_non_tech_classified_not_rejected(self) -> None:
         candidate = JobCandidate(
             canonical_id="x",
             source="test",
@@ -442,10 +343,13 @@ class TestGatesRoleFamily:
             normalized_location="",
         )
         result = gate_role_family(self.make_obs("Account Manager"), candidate, set(), {})
-        assert result == RejectionReason.ROLE_FAMILY_MISMATCH
+        assert result is None
+        assert candidate.role_family == RoleFamily.NON_TECHNICAL
 
 
-class TestGatesExplicitExperience:
+class TestExperienceNeverRejects:
+    """Experience/degree/clearance requirements are corpus data, not filters."""
+
     def make_obs(self, raw: str = "") -> JobObservation:
         return JobObservation(
             url="https://example.com/job/1",
@@ -455,86 +359,18 @@ class TestGatesExplicitExperience:
             raw_markdown=raw,
         )
 
-    def test_5_years_rejected(self) -> None:
-        """5+ years is a hard reject for the early-career candidate."""
-        result = gate_explicit_experience(
-            self.make_obs("Requires 5+ years of experience"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.EXPERIENCE_HIGH
+    def test_years_pass(self) -> None:
+        import asyncio
 
-    def test_10_years(self) -> None:
-        result = gate_explicit_experience(
-            self.make_obs("10+ years of software engineering experience required"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.EXPERIENCE_HIGH
-
-    def test_phd(self) -> None:
-        result = gate_explicit_experience(
-            self.make_obs("PhD in Computer Science required"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.EXPERIENCE_PHD
-
-    def test_clearance(self) -> None:
-        result = gate_explicit_experience(
-            self.make_obs("Must have security clearance"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result == RejectionReason.CLEARANCE_REQUIRED
-
-    def test_ok_jd(self) -> None:
-        result = gate_explicit_experience(
-            self.make_obs("Looking for a motivated engineer with 0-3 years experience"),
-            JobCandidate(
-                canonical_id="x",
-                source="test",
-                direct_apply_url="",
-                normalized_company="",
-                normalized_role="",
-                normalized_location="",
-            ),
-            set(),
-            {},
-        )
-        assert result is None
+        for raw in (
+            "Requires 5+ years of experience",
+            "10+ years of software engineering experience required",
+            "PhD in Computer Science required",
+            "Must have security clearance",
+            "Looking for a motivated engineer with 0-3 years experience",
+        ):
+            result, _ = asyncio.run(run_gates(self.make_obs(raw), set(), {}))
+            assert result is not None, f"{raw!r} should pass"
 
 
 class TestCanonicalId:
@@ -646,16 +482,15 @@ No jobs here at all.
 
 class TestRunGates:
     @pytest.mark.asyncio
-    async def test_full_pipeline_reject_senior(self) -> None:
+    async def test_full_pipeline_passes_senior(self) -> None:
         obs = JobObservation(
             url="https://jobs.lever.co/company/role-1",
             source="lever",
             title="Senior Engineer",
             snippet="Senior role",
         )
-        result, rejections = await run_gates(obs, set(), {})
-        assert result is None
-        assert len(rejections) > 0
+        result, _ = await run_gates(obs, set(), {})
+        assert result is not None
 
     @pytest.mark.asyncio
     async def test_full_pipeline_pass(self) -> None:
@@ -670,16 +505,15 @@ class TestRunGates:
             assert result.eligibility != EligibilityState.REJECTED
 
     @pytest.mark.asyncio
-    async def test_gate_rejects_us_onsite(self) -> None:
+    async def test_gate_allows_us_onsite(self) -> None:
         obs = JobObservation(
             url="https://boards.greenhouse.io/acme/1",
             source="greenhouse",
             title="Software Engineer",
             raw_markdown="This is an onsite role based in San Francisco, CA.",
         )
-        result, rejections = await run_gates(obs, set(), {})
-        assert result is None
-        assert any(r[1].value == "us_onsite" for r in rejections), rejections
+        result, _ = await run_gates(obs, set(), {})
+        assert result is not None
 
     @pytest.mark.asyncio
     async def test_gate_allows_remote_us(self) -> None:
@@ -689,29 +523,27 @@ class TestRunGates:
             title="Software Engineer",
             raw_markdown="Remote - US. Distributed team across timezones.",
         )
-        result, rejections = await run_gates(obs, set(), {})
+        result, _ = await run_gates(obs, set(), {})
         assert result is not None and result.eligibility != EligibilityState.REJECTED
 
     @pytest.mark.asyncio
-    async def test_gate_rejects_masters_required(self) -> None:
+    async def test_gate_allows_masters_required(self) -> None:
         obs = JobObservation(
             url="https://boards.greenhouse.io/acme/3",
             source="greenhouse",
             title="ML Engineer",
             raw_markdown="A Master's degree or PhD in CS is required for this role.",
         )
-        result, rejections = await run_gates(obs, set(), {})
-        assert result is None
-        assert any(r[1].value == "experience_phd" for r in rejections), rejections
+        result, _ = await run_gates(obs, set(), {})
+        assert result is not None
 
     @pytest.mark.asyncio
-    async def test_gate_rejects_foreign_onsite(self) -> None:
+    async def test_gate_allows_foreign_onsite(self) -> None:
         obs = JobObservation(
             url="https://jobs.ashbyhq.com/acme/4",
             source="ashby",
             title="Backend Engineer",
             raw_markdown="Onsite role based in London, UK. Hybrid 3 days a week.",
         )
-        result, rejections = await run_gates(obs, set(), {})
-        assert result is None
-        assert any(r[1].value == "us_onsite" for r in rejections), rejections
+        result, _ = await run_gates(obs, set(), {})
+        assert result is not None

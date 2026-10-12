@@ -7,7 +7,6 @@ No dependency on Firebase or any other persistence layer.
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import json
 import re
 import time
@@ -23,11 +22,6 @@ from src.logging import get_logger
 logger = get_logger("memory_store")
 
 VECTOR_DIM = 3072
-
-
-def _url_hash(url: str) -> str:
-    """Stable hash used to key obs_embeddings rows (matches md5(o.url))."""
-    return hashlib.md5(url.encode("utf-8")).hexdigest()
 
 
 _EMBED_NOISE = re.compile(r"[\u0000-\u001f\u007f]+")
@@ -374,22 +368,6 @@ CREATE TABLE IF NOT EXISTS company_osint (
     expires_at   DOUBLE PRECISION NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS llm_queue (
-    id            BIGSERIAL PRIMARY KEY,
-    canonical_id  TEXT NOT NULL,
-    version       INT NOT NULL DEFAULT 1,
-    priority      INT NOT NULL DEFAULT 50,
-    payload       JSONB NOT NULL DEFAULT '{{}}'::jsonb,
-    status        TEXT NOT NULL DEFAULT 'pending',
-    attempts      INT NOT NULL DEFAULT 0,
-    enqueued_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    lease_until   TIMESTAMPTZ,
-    completed_at  TIMESTAMPTZ,
-    UNIQUE (canonical_id, version)
-);
-
-CREATE INDEX IF NOT EXISTS idx_llm_queue_claim ON llm_queue(status, priority DESC, id);
-
 ALTER TABLE jobs_ledger
 ADD COLUMN IF NOT EXISTS embedding vector({VECTOR_DIM});
 
@@ -712,7 +690,6 @@ class MemoryStore:
                 "expires_at DOUBLE PRECISION NOT NULL DEFAULT 0"
             )
             await cls._create_hnsw_indexes(conn)
-            await cls._prune_llm_queue(conn)
             await cls._prune_embed_cache(conn)
             await cls._prune_http_cache(conn)
         # Lifecycle noise: MemoryStore is opened/closed constantly during board
@@ -752,17 +729,6 @@ class MemoryStore:
                 ON obs_embeddings USING hnsw (embedding vector_cosine_ops)
                 WITH (m = 16, ef_construction = 64)
                 """
-            )
-
-    @staticmethod
-    async def _prune_llm_queue(conn, older_than_days: int = 7) -> None:
-        """Drop settled queue rows so llm_queue never grows unbounded."""
-        with contextlib.suppress(Exception):
-            await conn.execute(
-                "DELETE FROM llm_queue "
-                "WHERE status IN ('done', 'error') "
-                "AND completed_at < NOW() - ($1::int * INTERVAL '1 day')",
-                older_than_days,
             )
 
     async def close(self) -> None:
@@ -1225,10 +1191,10 @@ class MemoryStore:
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT o.url, o.title, o.raw_json, o.first_seen,
+                SELECT o.url_hash, o.url, o.title, o.raw_json, o.first_seen,
                        md5(o.raw_json::text) AS content_hash
                 FROM job_observations o
-                LEFT JOIN obs_embeddings e ON e.url_hash = md5(o.url)
+                LEFT JOIN obs_embeddings e ON e.url_hash = o.url_hash
                 WHERE (e.url_hash IS NULL
                        OR e.content_hash IS DISTINCT FROM md5(o.raw_json::text))
                   AND o.url IS NOT NULL
@@ -1277,7 +1243,86 @@ class MemoryStore:
                 company = _company_from_url(r["url"])
             out.append(
                 {
-                    "url_hash": _url_hash(r["url"]),
+                    "url_hash": r["url_hash"],
+                    "title": r["title"] or "",
+                    "company": company,
+                    "content_hash": r["content_hash"] or "",
+                    "text": _build_embed_text(r["title"], r["raw_json"]),
+                }
+            )
+        return out
+
+    async def fetch_observation_rows(self, url_hashes: list[str]) -> list[dict[str, Any]]:
+        """Raw observation rows for explicit url hashes (normalize stage)."""
+        if not url_hashes:
+            return []
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT url_hash, url, source, title, snippet, last_seen, raw_json
+                FROM job_observations
+                WHERE url_hash = ANY($1::text[])
+                """,
+                url_hashes,
+            )
+        return [dict(r) for r in rows]
+
+    async def ungated_hashes(self, limit: int = 2000) -> list[str]:
+        """Url hashes with no candidate decision yet (boot backfill source)."""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT o.url_hash FROM job_observations o
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM radar_candidates c
+                    WHERE c.canonical_id = o.url_hash
+                       OR c.canonical_id = 'rejected:' || o.url_hash
+                )
+                ORDER BY o.last_seen DESC LIMIT $1
+                """,
+                limit,
+            )
+        return [r["url_hash"] for r in rows]
+
+    async def embed_texts_for(self, url_hashes: list[str]) -> list[dict[str, Any]]:
+        """Embed-ready texts for explicit url hashes (stream-driven embed stage).
+
+        Same output shape as unembedded_obs: url_hash, title, company,
+        content_hash, text. Markdown archived by the fetch stage rides inside
+        raw_json and is picked up by _build_embed_text.
+        """
+        if not url_hashes:
+            return []
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT o.url_hash, o.url, o.title, o.raw_json,
+                       md5(o.raw_json::text) AS content_hash
+                FROM job_observations o
+                WHERE o.url_hash = ANY($1::text[]) AND o.url IS NOT NULL
+                """,
+                url_hashes,
+            )
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            raw = r["raw_json"]
+            company = ""
+            if isinstance(raw, str) and raw:
+                try:
+                    raw = json.loads(raw)
+                except Exception:
+                    raw = None
+            if isinstance(raw, dict):
+                parsed = raw.get("parsed") or {}
+                if isinstance(parsed, dict):
+                    company = str(parsed.get("company") or parsed.get("name") or "")
+                if not company:
+                    company = str(raw.get("company_name") or raw.get("companyName") or "")
+            if not company:
+                company = _company_from_url(r["url"])
+            out.append(
+                {
+                    "url_hash": r["url_hash"],
                     "title": r["title"] or "",
                     "company": company,
                     "content_hash": r["content_hash"] or "",

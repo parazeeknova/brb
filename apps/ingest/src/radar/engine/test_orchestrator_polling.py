@@ -6,8 +6,8 @@ from collections.abc import Generator
 
 import pytest
 
+from src.pipeline import producers as pipeline_producers
 from src.radar.core.models import JobObservation
-from src.radar.engine import orchestrator
 from src.radar.sources import ats_interceptor, sources
 
 
@@ -39,8 +39,8 @@ async def test_direct_ats_poll_returns_only_snapshot_delta(monkeypatch: pytest.M
         "source_type": "official_ats",
     }
 
-    assert len(await orchestrator._poll_board(board)) == 1
-    assert await orchestrator._poll_board(board) == []
+    assert len(await pipeline_producers.poll_board(board, None)) == 1
+    assert await pipeline_producers.poll_board(board, None) == []
 
 
 @pytest.mark.asyncio
@@ -57,5 +57,5 @@ async def test_unavailable_official_ats_does_not_render_browser(
         "source_type": "official_ats",
     }
 
-    assert await orchestrator._poll_board(board) == []
+    assert await pipeline_producers.poll_board(board, None) == []
     assert sources.get_checkpoint("test:greenhouse").consecutive_failures == 1

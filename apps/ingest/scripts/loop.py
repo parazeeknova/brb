@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
-"""Ingest-only loop: radar pipeline supervisor (master + worker processes).
+"""Pipeline supervisor: N identical stream-pipeline processes, forever.
 
-Runs the corpus builder end-to-end from a single invocation: the radar
-pipeline (master + workers) discovers, gates, and LLM-matches jobs into
-``radar_candidates`` indefinitely. No autofill, no outcome listeners, no
-training hooks — application execution and learning live in the web app now
-(Steel + Clef).
-
-The loop is self-managing: crashed children are restarted (up to 5 times
-each) and a hang-watchdog restarts children that produce no log output for
-``LOOP_HANG_MINUTES``. The run stops after ``--max-minutes`` or on Ctrl+C.
+Each child runs ``python -m src.pipeline.run`` (all stages as Redis-Streams
+consumer groups, so processes coordinate without any master). No log files:
+children stream stdout straight through with a ``[name]`` prefix and the
+watchdog tracks in-memory output timestamps instead of file mtimes.
 
 Usage:
     uv run python scripts/loop.py
-    uv run python scripts/loop.py --radar-workers 4
+    uv run python scripts/loop.py --procs 2
     uv run python scripts/loop.py --max-minutes 240
 """
 
@@ -41,55 +36,15 @@ load_dotenv(override=True)
 
 PROJECT = Path(__file__).resolve().parent.parent  # apps/ingest
 REPO = PROJECT.parent.parent  # repo root
-LOG_DIR = REPO / "logs"
 
-# Same LLM throttle overrides run.py forces so workers blast through the corpus.
-RADAR_ENV_OVERRIDES = {
-    # Stay under the provider's real cap (GeneralCompute: 100 RPM / 200K TPM).
-    # These are setdefaults so a user's .env can raise them.
-    "LLM_QUEUE_RPM": "90",
-    "LLM_QUEUE_MAX_IN_FLIGHT": "10",
-    "LLM_QUEUE_TPM": "180000",
-    "LLM_BUDGET_RADAR_RPM": "60",
-    "LLM_BUDGET_RADAR_TPM": "120000",
-}
-
-# Hang-watchdog: a child (e.g. the radar-master) that is still alive but has
-# produced no log output for this many minutes is treated as STUCK and is
-# restarted automatically.
+# Silence watchdog: a child that is alive but emits nothing for this long is
+# treated as STUCK and restarted (BLOCK-parked consumers still log status).
 HANG_MINUTES = int(os.environ.get("LOOP_HANG_MINUTES", "6"))
 
 
-def _last_log_age(log_path: Path) -> float:
-    """Age in seconds of the last structured line written to a child's log."""
-    try:
-        if not log_path.exists():
-            return 0.0
-        last = ""
-        with open(log_path, errors="replace") as fh:
-            for line in fh:
-                if line.strip():
-                    last = line
-        if last:
-            import json as _json
-            from datetime import UTC, datetime
-
-            ts = _json.loads(last).get("timestamp")
-            if ts:
-                dt = datetime.fromisoformat(ts)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=UTC)
-                return (datetime.now(UTC) - dt).total_seconds()
-        return time.time() - log_path.stat().st_mtime
-    except Exception:
-        try:
-            return time.time() - log_path.stat().st_mtime
-        except OSError:
-            return 0.0
-
-
 async def _status_dashboard() -> str:
-    """One-line live corpus status from the DB. Best-effort, never crashes."""
+    """One-line corpus + stream status. Best-effort, never crashes."""
+    parts: list[str] = []
     try:
         from src.memory.pgvector_store import MemoryStore
 
@@ -101,17 +56,28 @@ async def _status_dashboard() -> str:
                 accepted = await c.fetchval(
                     "SELECT COUNT(*) FROM radar_candidates WHERE eligibility='accepted'"
                 )
-                sources = await c.fetchval("SELECT COUNT(*) FROM source_checkpoints")
         finally:
             await store.close()
+        parts.append(f"obs={obs} | cand={cand} | accepted={accepted}")
     except Exception:
-        return "[status] corpus state unavailable"
-    return f"[status] obs={obs} | cand={cand} | accepted={accepted} | sources={sources}"
+        parts.append("corpus unavailable")
+    try:
+        from redis.asyncio import Redis
+        from src.stream.bus import ALL_STREAMS
+
+        client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+        try:
+            depths = {s.rsplit(":", 1)[-1]: await client.xlen(s) for s in ALL_STREAMS}
+            parts.append("streams: " + " ".join(f"{k}={v}" for k, v in depths.items()))
+        finally:
+            await client.aclose()
+    except Exception:
+        pass
+    return "[status] " + " | ".join(parts)
 
 
 def _base_env() -> dict[str, str]:
     env = os.environ.copy()
-    env.setdefault("OVERNIGHT_LOOP", "true")
     env.setdefault("PYTHONUNBUFFERED", "1")
     # Corpus runs never prompt: resume/persona grounding is env-only.
     env.setdefault("HO_NON_INTERACTIVE", "1")
@@ -129,11 +95,9 @@ class Child:
         self.env = env
         self.proc: subprocess.Popen[str] | None = None
         self.restarts = 0
-        self._stream_thread: Any | None = None
-        self.log_path = LOG_DIR / f"{name}.log"
+        self.last_output = time.monotonic()
 
     async def start(self) -> None:
-        LOG_DIR.mkdir(exist_ok=True)
         # start_new_session: each child is a session leader with its own process
         # group (pgid == pid). A terminal Ctrl+C therefore only reaches loop.py,
         # never the children — loop.py is the single owner of child cleanup.
@@ -152,25 +116,20 @@ class Child:
 
         def _stream_blocking() -> None:
             assert self.proc is not None and self.proc.stdout is not None
-            mode = "wb" if self.restarts == 0 else "ab"
-            with (
-                open(LOG_DIR / f"{self.name}.log", mode) as log_file,
-                open(LOG_DIR / "loop.log", "ab") as loop_log,
-            ):
-                for line in self.proc.stdout:
+            for line in self.proc.stdout:
+                self.last_output = time.monotonic()
+                if line.strip():
                     sys.stdout.write(f"[{self.name}] {line}")
                     sys.stdout.flush()
-                    log_file.write(line.encode())
-                    log_file.flush()
-                    loop_log.write(line.encode())
-                    loop_log.flush()
 
         thread = threading.Thread(target=_stream_blocking, daemon=True)
         thread.start()
-        self._stream_thread = thread
 
     def is_alive(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
+
+    def output_age(self) -> float:
+        return time.monotonic() - self.last_output
 
     def stop(self, sig: int = signal.SIGINT) -> None:
         if self.proc is not None and self.proc.poll() is None:
@@ -190,23 +149,13 @@ class Child:
                 await asyncio.to_thread(self.proc.wait)
 
 
-async def _spawn_radar(children: list[Child], workers: int) -> None:
+async def _spawn_pipelines(children: list[Child], procs: int) -> None:
     env = _base_env()
-    env.update(RADAR_ENV_OVERRIDES)
-    master = Child(
-        "radar-master",
-        [sys.executable, "-m", "src.radar.engine.orchestrator"],
-        env,
-    )
-    await master.start()
-    children.append(master)
-    for idx in range(1, workers + 1):
-        w_env = env.copy()
-        w_env["HO_WORKER_ONLY"] = "1"
+    for idx in range(1, procs + 1):
         child = Child(
-            f"radar-worker-{idx}",
-            [sys.executable, "-m", "src.radar.engine.orchestrator"],
-            w_env,
+            f"pipeline-{idx}",
+            [sys.executable, "-m", "src.pipeline.run"],
+            env.copy(),
         )
         await child.start()
         children.append(child)
@@ -214,13 +163,7 @@ async def _spawn_radar(children: list[Child], workers: int) -> None:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--no-radar", action="store_true", help="Do not start the radar pipeline")
-    parser.add_argument(
-        "--radar-workers",
-        type=int,
-        default=4,
-        help="Radar worker procs (in addition to the master)",
-    )
+    parser.add_argument("--procs", type=int, default=2, help="Identical pipeline processes to run")
     parser.add_argument("--max-minutes", type=int, default=0, help="Hard stop after N minutes")
     args = parser.parse_args()
 
@@ -251,11 +194,7 @@ async def main() -> None:
         signal.signal(signal.SIGTERM, _on_signal)
 
     try:
-        if not args.no_radar:
-            await _spawn_radar(children, args.radar_workers)
-        if not children:
-            print("[loop] nothing to run (--no-radar given)")
-            return
+        await _spawn_pipelines(children, args.procs)
     except Exception as exc:
         print(f"[loop] failed to start children: {exc}")
         for child in children:
@@ -273,31 +212,22 @@ async def main() -> None:
 
             for child in children:
                 if child.is_alive():
-                    age = _last_log_age(child.log_path)
+                    age = child.output_age()
                     if age > HANG_MINUTES * 60:
                         print(
-                            f"[loop] {child.name} hung (no output {age:.0f}s); restarting",
+                            f"[loop] {child.name} silent {age:.0f}s; restarting",
                             flush=True,
                         )
                         child.stop()
                         with contextlib.suppress(Exception):
                             await child.wait(timeout=8)
                         if child.restarts >= 5:
-                            print(f"[loop] {child.name} hung and exceeded restarts", flush=True)
+                            print(f"[loop] {child.name} exceeded restarts", flush=True)
                             continue
                         child.restarts += 1
                         await child.start()
                         continue
                 if not child.is_alive():
-                    # Exit code 42 = the radar finished its bounded batch.
-                    if (
-                        child.name == "radar-master"
-                        and child.proc is not None
-                        and child.proc.returncode == 42
-                    ):
-                        print("[loop] radar-master reached its target batch; finishing", flush=True)
-                        child.stop()
-                        return
                     if child.restarts >= 5:
                         print(f"[loop] {child.name} crashed and exceeded restarts", flush=True)
                         continue

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import re
 from typing import Any
@@ -7,16 +8,45 @@ from generalcompute import GeneralCompute
 
 from src.configuration import LLMConfig, get_config
 from src.logging import get_logger
-from src.radar.core.governor import (
-    _is_429,
-    acquire_budget,
-    handle_429,
-    init_governor,
-    release_budget,
-)
 from src.retry import _is_transient
 
 logger = get_logger("llm")
+
+# Local concurrency + 429 cooldown. The old cross-process Redis governor died
+# with the sweep-era LLM matching queue; the remaining LLM callers (intel
+# scripts, verifier) are low-volume, so a process-local semaphore suffices.
+_LLM_SEM = asyncio.Semaphore(4)
+_cooldown_until = 0.0
+
+
+def _is_429(err_msg: str) -> bool:
+    return (
+        "429" in err_msg
+        or "rate limit" in err_msg.lower()
+        or "too many requests" in err_msg.lower()
+    )
+
+
+async def acquire_budget(est_tokens: int = 0, interactive: bool = False) -> None:
+    """Park on the local semaphore; honor a recent 429 cooldown first."""
+    global _cooldown_until
+    wait = _cooldown_until - asyncio.get_running_loop().time()
+    if wait > 0:
+        await asyncio.sleep(min(wait, 35.0))
+    await _LLM_SEM.acquire()
+
+
+def release_budget() -> None:
+    with contextlib.suppress(ValueError):
+        _LLM_SEM.release()
+
+
+async def handle_429() -> None:
+    """Called on a 429 response: pause the local lane briefly."""
+    global _cooldown_until
+    _cooldown_until = asyncio.get_running_loop().time() + 30.0
+    logger.warning("LLM rate-limited (429); local cooldown 30s")
+
 
 VERIFY_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -31,10 +61,7 @@ _initialized = False
 
 
 def _ensure_governor() -> None:
-    global _initialized
-    if not _initialized:
-        init_governor()
-        _initialized = True
+    """No-op hook kept for callers (local limiter needs no init)."""
 
 
 class ContextManager:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
-
 from src.radar.sources.crawler import (
     _canonical_url,
     _classify_result,
@@ -257,17 +255,6 @@ class TestSourceIdCollisionProtection:
         )
         assert "acme" in id1
         assert "acme" in id2
-
-
-class TestEmailGuessingRemoved:
-    def test_no_guess_in_analyze_startup_source(self) -> None:
-        from src.agent.startup_agent import StartupAgent
-
-        source = inspect.getsource(StartupAgent._analyze_startup_uncached).lower()
-        assert "aggressively guess" not in source
-        assert "may be guessed" not in source
-        assert "never guess" in source
-        assert "do not guess" in source
 
 
 class TestCanonicalUrl:

@@ -36,9 +36,13 @@ _ATS_SITES = [
 ]
 
 _DORK_TERMS = [
-    '"Junior" OR "Entry Level" OR "Associate" OR "Graduate"',
-    '"New Grad" OR "2026" OR "Intern" OR "Internship"',
-    '"Junior Software Engineer" OR "Entry Level Engineer"',
+    # All levels, all functions: the corpus serves everyone, so dorks must
+    # not skew junior/engineering. Rotate seniority + function slices.
+    '"Software Engineer" OR "Backend Engineer" OR "Frontend Engineer"',
+    '"Senior" OR "Staff" OR "Principal" OR "Lead" OR "Manager"',
+    '"Product Designer" OR "UX Designer" OR "Product Manager" OR "Data Scientist"',
+    '"Data Engineer" OR "ML Engineer" OR "DevOps Engineer" OR "QA Engineer"',
+    '"Junior" OR "Entry Level" OR "Associate" OR "Graduate" OR "Intern"',
 ]
 
 _DORK_QUERIES = [f"{site} {terms}{_TIME_SYNTAX}" for site in _ATS_SITES for terms in _DORK_TERMS]
@@ -51,6 +55,8 @@ _WEB_LANE_QUERIES = [
     'intitle:"jobs" "we are hiring" software',
     '"/careers" "software engineer" "apply" -site:linkedin.com',
     '"career opportunities" software engineer',
+    'intitle:"careers" "product designer" (jobs OR openings)',
+    'intitle:"careers" "data scientist" OR "product manager" (jobs OR openings)',
 ]
 
 _DORK_QUERIES += [f"{q}{_TIME_SYNTAX}" for q in _WEB_LANE_QUERIES]

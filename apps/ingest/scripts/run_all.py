@@ -248,78 +248,59 @@ async def _run_loop(args: argparse.Namespace) -> int:
     cmd = [
         sys.executable,
         str(PROJECT / "scripts" / "loop.py"),
-        "--radar-workers",
-        str(args.radar_workers),
+        "--procs",
+        str(args.procs),
     ]
     if args.max_minutes:
         cmd += ["--max-minutes", str(args.max_minutes)]
     print(f"[ho] launching loop: {' '.join(cmd)}", flush=True)
-    log_dir = REPO / "logs"
-    log_dir.mkdir(exist_ok=True)
-    # Stream the loop's output to BOTH the console (so the user sees live
-    # sweep/status progress) AND run_all.log (for tailing). A bare pipe to
-    # stdout would deadlock if un-drained, so we drain it here.
-    log_path = log_dir / "run_all.log"
-    run_log_path = log_dir / "run.log"
-    loop_log_path = log_dir / "loop.log"
-    with (
-        log_path.open("wb") as out1,
-        run_log_path.open("ab") as out2,
-        loop_log_path.open("wb") as out3,
-    ):
-        # start_new_session: loop.py becomes a session leader so a terminal
-        # Ctrl+C (foreground process group) never reaches it directly. run_all
-        # stays the single owner of loop.py's lifecycle and tears the whole
-        # tree down in the finally below.
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=str(PROJECT),
-            env=env,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            start_new_session=True,
-        )
+    # start_new_session: loop.py becomes a session leader so a terminal
+    # Ctrl+C (foreground process group) never reaches it directly. run_all
+    # stays the single owner of loop.py's lifecycle and tears the whole
+    # tree down in the finally below. Output streams to the console only;
+    # structured history lives in OpenObserve, not log files.
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=str(PROJECT),
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        start_new_session=True,
+    )
 
-        async def _tee() -> None:
-            assert proc.stdout is not None
-            while True:
-                chunk = await proc.stdout.readline()
-                if not chunk:
-                    break
-                line = chunk.decode(errors="replace")
-                out1.write(chunk)
-                out1.flush()
-                out2.write(chunk)
-                out2.flush()
-                out3.write(chunk)
-                out3.flush()
-                sys.stdout.write(line)
-                sys.stdout.flush()
+    async def _tee() -> None:
+        assert proc.stdout is not None
+        while True:
+            chunk = await proc.stdout.readline()
+            if not chunk:
+                break
+            sys.stdout.write(chunk.decode(errors="replace"))
+            sys.stdout.flush()
 
-        tee_task = asyncio.create_task(_tee())
-        try:
-            rc = await proc.wait()
-        except asyncio.CancelledError:
-            rc = 130
-            raise
-        finally:
-            # Whatever exits us (Ctrl+C, crash, normal finish), never strand
-            # the pipeline: TERM the loop's whole group, give it time to run
-            # its own child cleanup, then KILL whatever is left and reap any
-            # surviving pattern processes as a final safety net.
-            with contextlib.suppress(Exception):
-                if proc.returncode is None:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    try:
-                        await asyncio.wait_for(proc.wait(), timeout=15)
-                    except TimeoutError:
-                        with contextlib.suppress(Exception):
-                            os.killpg(proc.pid, signal.SIGKILL)
-                        with contextlib.suppress(Exception):
-                            await proc.wait()
-            _reap_pipeline_orphans(sig="KILL", grace_s=1.0)
-            await tee_task
-        return rc
+    tee_task = asyncio.create_task(_tee())
+    try:
+        rc = await proc.wait()
+    except asyncio.CancelledError:
+        rc = 130
+        raise
+    finally:
+        # Whatever exits us (Ctrl+C, crash, normal finish), never strand
+        # the pipeline: TERM the loop's whole group, give it time to run
+        # its own child cleanup, then KILL whatever is left and reap any
+        # surviving pattern processes as a final safety net.
+        with contextlib.suppress(Exception):
+            if proc.returncode is None:
+                os.killpg(proc.pid, signal.SIGTERM)
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=15)
+                except TimeoutError:
+                    with contextlib.suppress(Exception):
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    with contextlib.suppress(Exception):
+                        await proc.wait()
+        _reap_pipeline_orphans(sig="KILL", grace_s=1.0)
+        await tee_task
+    return rc
 
 
 def _handle_sig(signum: int, frame) -> None:  # noqa: ANN001
@@ -330,36 +311,15 @@ def _handle_sig(signum: int, frame) -> None:  # noqa: ANN001
     raise KeyboardInterrupt
 
 
-class _LogTee:
-    """Tee output to both console stream and file."""
-
-    def __init__(self, original_stream: object, log_file: object) -> None:
-        self.original_stream = original_stream
-        self.log_file = log_file
-
-    def write(self, data: str) -> None:
-        getattr(self.original_stream, "write", lambda s: None)(data)
-        getattr(self.original_stream, "flush", lambda: None)()
-        with contextlib.suppress(Exception):
-            getattr(self.log_file, "write", lambda s: None)(data)
-            getattr(self.log_file, "flush", lambda: None)()
-
-    def flush(self) -> None:
-        getattr(self.original_stream, "flush", lambda: None)()
-        with contextlib.suppress(Exception):
-            getattr(self.log_file, "flush", lambda: None)()
-
-
 def _status_report(watch: bool = False) -> int:
     """`bun run run --status`: a full read-only snapshot of every counter the
-    pipeline tracks — DB, graph, RAG, ML, autofill, epochs, sources, and
-    whether anything is currently running. No side effects: does not touch
-    containers or the lock."""
+    pipeline tracks — DB, graph, RAG, streams, sources, and whether anything
+    is currently running. No side effects: does not touch containers."""
     import asyncio
     import os as _os
     from typing import Any
 
-    # Quiet the pipeline loggers (MemoryStore/AutofillDB emit INFO on open/close).
+    # Quiet the pipeline loggers (MemoryStore emits INFO on open/close).
     _os.environ["LOG_LEVEL"] = "WARNING"
 
     async def _pg_section() -> dict[str, Any]:
@@ -424,40 +384,6 @@ def _status_report(watch: bool = False) -> int:
                     "SELECT eligibility, COUNT(*) AS n FROM radar_candidates GROUP BY eligibility"
                 )
                 return {str(r["eligibility"]): r["n"] for r in rows}
-        finally:
-            await store.close()
-
-    async def _queue_section() -> dict[str, int]:
-        # Apply queue moved to the web app (Steel). Corpus has no queue.
-        return {}
-
-    async def _epoch_section() -> dict[str, Any]:
-        from src.memory.pgvector_store import MemoryStore
-
-        store = await MemoryStore.create()
-        try:
-            async with store._pool.acquire() as c:
-                active = await c.fetchrow(
-                    "SELECT epoch_id, started_at, target_submissions "
-                    "FROM learning_epochs "
-                    "WHERE status='active' ORDER BY started_at DESC LIMIT 1"
-                )
-                total = await c.fetchval("SELECT COUNT(*) FROM learning_epochs")
-                done = await c.fetchval(
-                    "SELECT COUNT(*) FROM learning_epochs WHERE status IN "
-                    "('completed','target_reached')"
-                )
-                a = dict(active) if active else None
-                if a:
-                    try:
-                        a["completed_submissions"] = await c.fetchval(
-                            "SELECT COUNT(*) FROM autofill_queue "
-                            "WHERE epoch_id = $1 AND applied_at IS NOT NULL",
-                            a["epoch_id"],
-                        )
-                    except Exception:
-                        a["completed_submissions"] = 0
-            return {"active": a, "total": total, "done": done}
         finally:
             await store.close()
 
@@ -540,27 +466,38 @@ def _status_report(watch: bool = False) -> int:
         finally:
             await store.close()
 
+    async def _streams_section() -> dict[str, int]:
+        try:
+            from redis.asyncio import Redis
+            from src.stream.bus import ALL_STREAMS
+
+            client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+            try:
+                return {s.rsplit(":", 1)[-1]: int(await client.xlen(s)) for s in ALL_STREAMS}
+            finally:
+                await client.aclose()
+        except Exception:
+            return {}
+
     async def _collect_all_stats() -> dict[str, Any]:
-        rates, pg, elig, queue, epoch, rag, graph, top = await asyncio.gather(
+        rates, pg, elig, rag, graph, top, streams = await asyncio.gather(
             _rates_section(),
             _pg_section(),
             _eligibility_section(),
-            _queue_section(),
-            _epoch_section(),
             _rag_section(),
             _graph_section(),
             _top_sources(),
+            _streams_section(),
         )
         running = _pipeline_running()
         return {
             "rates": rates,
             "pg": pg,
             "elig": elig,
-            "queue": queue,
-            "epoch": epoch,
             "rag": rag,
             "graph": graph,
             "top": top,
+            "streams": streams,
             "running": running,
         }
 
@@ -673,11 +610,10 @@ def _status_report(watch: bool = False) -> int:
         if err:
             t_elig.add_row("Error", f"{err:,}", f"{err / total_elig * 100:.1f}%")
 
-        # 4. Autofill Queue & Learning Epoch
-        q = stats["queue"]
-        ep = stats["epoch"]
-        t_queue = Table(
-            title="LEARNING EPOCHS (apply queue moved to web app)",
+        # 4. Stream depths (pipeline motion)
+        streams = stats["streams"]
+        t_streams = Table(
+            title="STREAM DEPTHS (undelivered + unacked)",
             title_style="bold italic cyan",
             title_justify="left",
             box=None,
@@ -686,30 +622,10 @@ def _status_report(watch: bool = False) -> int:
             expand=True,
             padding=(0, 2),
         )
-        t_queue.add_column("Queue / Epoch Metric", style="cyan", justify="left", no_wrap=True)
-        t_queue.add_column("Value / Status", style="bold white", justify="right")
-        t_queue.add_row("Total Form Fills Executed", f"{q.get('fills', 0):,}")
-        t_queue.add_row("Pending Queue Jobs", f"{q.get('pending', 0):,}")
-        t_queue.add_row("Currently Filling Jobs", f"{q.get('filling', 0):,}")
-        t_queue.add_row("Confirmed Applications Submitted", f"{q.get('submitted', 0):,}")
-        t_queue.add_row("Awaiting Review", f"{q.get('awaiting_review', 0):,}")
-        t_queue.add_row(
-            "Failed / Deferred Jobs", f"{q.get('failed', 0):,} / {q.get('deferred', 0):,}"
-        )
-        t_queue.add_row("Skipped Jobs", f"{q.get('skipped', 0):,}")
-
-        if ep["active"]:
-            a = ep["active"]
-            tgt = a.get("target_submissions") or 0
-            tgt_str = (
-                f"{a['completed_submissions']}/{tgt}"
-                if tgt > 0
-                else f"{a['completed_submissions']} (no target cap)"
-            )
-            t_queue.add_row("Active Learning Epoch ID", f"{a['epoch_id']} ({tgt_str})")
-        else:
-            t_queue.add_row("Active Learning Epoch ID", "None")
-        t_queue.add_row("Learning Epochs (Total / Completed)", f"{ep['total']} / {ep['done']}")
+        t_streams.add_column("Stream", style="cyan", justify="left", no_wrap=True)
+        t_streams.add_column("Depth", style="bold white", justify="right")
+        for name in ("discover", "raw", "gated", "embed", "dlq"):
+            t_streams.add_row(name, f"{streams.get(name, 0):,}")
 
         # 5. RAG Memory & Graph
         rag = stats["rag"]
@@ -750,7 +666,7 @@ def _status_report(watch: bool = False) -> int:
         for src, n in stats["top"][:10]:
             t_top.add_row(src, f"{n:,}")
 
-        return Group(t_hdr, t_rates, t_ingest, t_elig, t_queue, t_rag, t_top)
+        return Group(t_hdr, t_rates, t_ingest, t_elig, t_streams, t_rag, t_top)
 
     async def _live_loop() -> int:
         from rich.console import Console
@@ -789,7 +705,7 @@ def _reap_pipeline_orphans(sig: str = "KILL", grace_s: float = 1.0) -> None:
 
     patterns = (
         "scripts/loop.py",
-        "radar.engine.orchestrator",
+        "src.pipeline.run",
     )
     own_pgid = os.getpgid(os.getpid())
 
@@ -942,10 +858,10 @@ def main() -> int:
     )
     ap.add_argument("--dry-run", action="store_true", help="Start infra only, then stop")
     ap.add_argument(
-        "--radar-workers",
+        "--procs",
         type=int,
-        default=4,
-        help="Radar worker procs (in addition to the master)",
+        default=2,
+        help="Identical pipeline processes to run",
     )
     ap.add_argument("--max-minutes", type=int, default=0, help="Hard stop after N minutes")
     args = ap.parse_args()
@@ -957,58 +873,18 @@ def main() -> int:
         is_watch = args.watch or (_sys.stdout.isatty() and not args.once)
         return _status_report(watch=is_watch)
 
-    # Single-instance lock: only one `bun run run` may own the pipeline at a time.
-    import os as _os
-    import signal as _signal
-    import sys as _sys
+    # Single-instance lock: bind a loopback port instead of a lock file
+    # (no local log files anymore; history lives in OpenObserve).
+    import socket as _socket
 
-    lock_path = REPO / "logs" / "ho_run.lock"
-    log_dir = REPO / "logs"
-    log_dir.mkdir(exist_ok=True)
-
-    # Automatically stream all run logs to logs/run.log & logs/loop.log
+    _lock_sock = _socket.socket()
     try:
-        run_log_path = log_dir / "run.log"
-        log_fp = run_log_path.open("w", encoding="utf-8")
-        _sys.stdout = _LogTee(_sys.stdout, log_fp)
-        _sys.stderr = _LogTee(_sys.stderr, log_fp)
-        latest_log_path = log_dir / "latest.log"
-        latest_log_path.unlink(missing_ok=True)
-        with contextlib.suppress(Exception):
-            latest_log_path.symlink_to(run_log_path.name)
-    except Exception:
-        pass
-
-    def _stop_pipeline_tree(old_pid: int) -> None:
-        """Gracefully stop a running pipeline: the run_all + its loop, radar
-        master/workers. SIGINT first so
-        in-flight jobs wrap up cleanly; SIGKILL only stragglers. Kills by
-        pattern too so orphans (children of a died run_all) are reaped, while
-        never signalling our own process or terminal group."""
-        with contextlib.suppress(Exception):
-            _os.kill(old_pid, _signal.SIGINT)
-        _reap_pipeline_orphans(sig="KILL", grace_s=10.0)
-        with contextlib.suppress(Exception):
-            _os.kill(old_pid, _signal.SIGKILL)
-        time.sleep(1)
-
-    if lock_path.exists():
-        try:
-            old_pid = int(lock_path.read_text().strip())
-            _os.kill(old_pid, 0)  # raises ProcessLookupError if dead
-            print(f"[ho] stopping previous run (pid {old_pid})...", flush=True)
-            _stop_pipeline_tree(old_pid)
-            time.sleep(2)
-            lock_path.unlink(missing_ok=True)
-        except (ProcessLookupError, ValueError):  # fmt: skip
-            lock_path.unlink(missing_ok=True)
-    else:
-        # No lock file, but a pipeline may still be running (e.g. a run started
-        # before the lock existed, or a crashed run_all that leaked children).
-        # Reap any lingering loop/radar/worker procs so `bun run run` always
-        # starts one clean pipeline.
-        _reap_pipeline_orphans(sig="KILL", grace_s=2.0)
-    lock_path.write_text(str(_os.getpid()))
+        _lock_sock.bind(("127.0.0.1", 53921))
+    except OSError:
+        print("[ho] another run owns the pipeline; reaping strays and taking over", flush=True)
+    # A previous crashed run may have leaked children: reap orphans so
+    # `bun run run` always starts one clean pipeline.
+    _reap_pipeline_orphans(sig="KILL", grace_s=2.0)
 
     signal.signal(signal.SIGINT, _handle_sig)
     signal.signal(signal.SIGTERM, _handle_sig)
@@ -1029,14 +905,8 @@ def main() -> int:
         print(f"[ho] rag: {rag}", flush=True)
         print(f"[ho] ml: {ml}", flush=True)
         print(f"[ho] discord: {disc}", flush=True)
-        # One-line sweep intent so the user knows what this run will do
-        import os as _os2
-
-        epoch_target = int(_os2.environ.get("RADAR_SESSION_APPLICATION_TARGET", "0") or "0")
-        target_desc = f"target={epoch_target} confirmed" if epoch_target > 0 else "no target cap"
-        print(  # noqa: E501
-            f"[ho] sweep config: workers={args.radar_workers}"
-            f" {target_desc}; stops on --max-minutes / Ctrl+C",
+        print(
+            f"[ho] pipeline config: procs={args.procs}; stops on --max-minutes / Ctrl+C",
             flush=True,
         )
         if args.dry_run:
@@ -1060,10 +930,9 @@ def main() -> int:
         print("[ho] stopped.", flush=True)
         return 0
     finally:
-        # Release the single-instance lock so the next `bun run run` can start.
+        # Release the loopback-port lock so the next `bun run run` can bind.
         with contextlib.suppress(Exception):
-            if lock_path.exists() and lock_path.read_text().strip() == str(_os.getpid()):
-                lock_path.unlink()
+            _lock_sock.close()
 
 
 def _autoheal_containers() -> None:
