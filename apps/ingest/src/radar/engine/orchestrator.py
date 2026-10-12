@@ -1203,7 +1203,11 @@ async def _emit_ranking_impression(
     if not ranked or not store:
         return
     try:
-        from ml import FEATURE_VERSION, POLICY_VERSION, RANKER_VERSION  # ty: ignore[unresolved-import]
+        from ml import (  # ty: ignore[unresolved-import]
+            FEATURE_VERSION,
+            POLICY_VERSION,
+            RANKER_VERSION,
+        )
         from ml.src.outcomes.events import (  # ty: ignore[unresolved-import]
             DecisionEvent,
             emit_events,

@@ -65,10 +65,7 @@ dev = [
 
 [tool.ty.environment]
 python-version = "3.14"
-extra-paths = [
-  "apps/ingest",
-  "apps/ingest/scripts",
-]
+extra-paths = ["apps/ingest", "apps/ingest/scripts"]
 
 [tool.ty.src]
 exclude = ["**/test_*.py", "**/conftest.py", "**/tests/**", "**/__pycache__/**"]
