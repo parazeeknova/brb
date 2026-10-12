@@ -26,6 +26,37 @@ from src.radar.core.signals import extract_signals
 
 logger = get_logger("pipeline_normalize")
 
+SUBQ_VERIFY_THRESHOLD = 0.7
+
+
+async def verify_posting(ctx: Any, obs: JobObservation) -> bool:
+    """SubQ real-posting judgment for non-ATS pages (fail-open when offline).
+
+    Deterministic pre-checks first (title + company + substance) so obvious
+    junk never spends model budget. Returns True when verified.
+    """
+    title = (obs.title or "").strip()
+    if len(title) < 4 or len(obs.raw_markdown) < 400:
+        return False
+    try:
+        from src.llm.subq import is_available, is_real_posting
+    except Exception:
+        return False
+    if not is_available():
+        return False
+    company = ""
+    try:
+        from src.radar.core.gates import _extract_company
+
+        company = _extract_company(obs)
+    except Exception:
+        pass
+    try:
+        prob = await is_real_posting(title, company, obs.raw_markdown)
+    except Exception:
+        return False
+    return prob is not None and prob >= SUBQ_VERIFY_THRESHOLD
+
 
 def _obs_from_row(row: dict[str, Any]) -> JobObservation:
     """Rehydrate an observation; archived markdown becomes gate input."""
@@ -42,18 +73,21 @@ def _obs_from_row(row: dict[str, Any]) -> JobObservation:
         md = raw.get("markdown")
         if isinstance(md, str):
             markdown = md
+    extra: dict[str, Any] = {}
+    if isinstance(raw, dict) and isinstance(raw.get("company_slug"), str):
+        extra["company_slug"] = raw["company_slug"]
     return JobObservation(
         url=row.get("url", ""),
         source=row.get("source", "raw"),
         raw_markdown=markdown,
         title=row.get("title", ""),
         snippet=row.get("snippet", ""),
-        extra={},
+        extra=extra,
     )
 
 
-async def normalize_one(ctx: Any, url_hash: str) -> str | None:
-    """Gate one observation row. Returns canonical_id when accepted."""
+async def normalize_one(ctx: Any, url_hash: str) -> tuple[str, str] | None:
+    """Gate one observation row. Returns (canonical_id, company) when accepted."""
     await ctx.known.refresh(ctx.store)
     rows = await ctx.store.fetch_observation_rows([url_hash])
     if not rows:
@@ -63,6 +97,19 @@ async def normalize_one(ctx: Any, url_hash: str) -> str | None:
         return None
     pid = posting_id(obs)
     obs.observed_at = time.time()
+
+    # Anti-fake: ATS rows are verified at fetch; everything else must pass
+    # the SubQ real-posting judgment before entering the corpus.
+    if not rows[0].get("verified"):
+        if not await verify_posting(ctx, obs):
+            from src.radar.core.models import RejectionReason
+
+            await persist_rejected(
+                ctx.store, obs, pid, [("verify", RejectionReason.VERIFY_FAIL, "unverifiable")]
+            )
+            return None
+        with contextlib.suppress(Exception):
+            await ctx.store.set_observation_verified(pid, "subq")
 
     candidate, rejections = await run_gates(obs, ctx.known.hashes, ctx.known.last_seen)
     if candidate is None:
@@ -94,7 +141,7 @@ async def normalize_one(ctx: Any, url_hash: str) -> str | None:
     await graph_upsert_company(ctx, candidate)
     with contextlib.suppress(Exception):
         await ctx.store.record_pipeline_stage_event("gate_accept", 1)
-    return candidate.canonical_id
+    return candidate.canonical_id, candidate.normalized_company
 
 
 async def graph_upsert_company(ctx: Any, candidate: JobCandidate) -> None:
@@ -121,11 +168,23 @@ async def handle_raw(ctx: Any, fields: dict[str, str]) -> None:
     if not url_hash:
         return
     try:
-        canonical_id = await normalize_one(ctx, url_hash)
+        accepted = await normalize_one(ctx, url_hash)
     except Exception as exc:
         logger.warning(f"Normalize failed for {url_hash}: {exc}")
         return
-    if canonical_id is None:
+    if accepted is None:
         return
+    canonical_id, company = accepted
     await ctx.bus.publish("ho:s:gated", model.gated_fields(canonical_id))
     await ctx.bus.publish("ho:s:embed", model.embed_fields(url_hash))
+    try:
+        from src.pipeline.enrich import is_company_fresh
+
+        if (
+            company
+            and company.strip().lower() not in ("unknown", "n/a", "")
+            and await is_company_fresh(ctx, company)
+        ):
+            await ctx.bus.publish("ho:s:enrich", model.enrich_fields(company, canonical_id))
+    except Exception:
+        pass

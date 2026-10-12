@@ -52,6 +52,7 @@ class RejectionReason(Enum):
     VECTOR_GATE = "vector_gate"
     NO_SPONSORSHIP = "no_sponsorship"
     US_ONSITE = "us_onsite"
+    VERIFY_FAIL = "verify_fail"
     UNKNOWN = "unknown"
 
 
@@ -97,6 +98,8 @@ class JobObservation:
     observed_at: float = field(default_factory=time.time)
     source_freshness_evidence: str | None = None  # "posted <1h ago", etc.
     extra: dict[str, Any] = field(default_factory=dict)
+    verified: bool = False
+    verification_method: str = ""
 
     def canonical_url_hash(self) -> str:
         return _canonical_url_hash(self.url)

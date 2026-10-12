@@ -22,6 +22,7 @@ STREAM_DISCOVER = "ho:s:discover"
 STREAM_RAW = "ho:s:raw"
 STREAM_GATED = "ho:s:gated"
 STREAM_EMBED = "ho:s:embed"
+STREAM_ENRICH = "ho:s:enrich"
 STREAM_DLQ = "ho:s:dlq"
 
 ALL_STREAMS: tuple[str, ...] = (
@@ -29,6 +30,7 @@ ALL_STREAMS: tuple[str, ...] = (
     STREAM_RAW,
     STREAM_GATED,
     STREAM_EMBED,
+    STREAM_ENRICH,
     STREAM_DLQ,
 )
 
@@ -107,7 +109,7 @@ class StreamBus:
         max_deliveries times move to the DLQ instead of looping forever.
         """
         reclaimed = 0
-        for stream in (STREAM_DISCOVER, STREAM_RAW, STREAM_GATED, STREAM_EMBED):
+        for stream in (STREAM_DISCOVER, STREAM_RAW, STREAM_GATED, STREAM_EMBED, STREAM_ENRICH):
             reclaimed += await self.reap_stream(stream)
         return reclaimed
 

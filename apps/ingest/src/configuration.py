@@ -103,9 +103,10 @@ class PipelineConfig:
     (sources.py lane scheduling), not as a loop sleep.
     """
 
-    fetch_workers: int = field(default_factory=lambda: _env_int("FETCH_WORKERS", 8))
-    normalize_workers: int = field(default_factory=lambda: _env_int("NORMALIZE_WORKERS", 8))
+    fetch_workers: int = field(default_factory=lambda: _env_int("FETCH_WORKERS", 24))
+    normalize_workers: int = field(default_factory=lambda: _env_int("NORMALIZE_WORKERS", 16))
     embed_workers: int = field(default_factory=lambda: _env_int("EMBED_WORKERS", 4))
+    enrich_workers: int = field(default_factory=lambda: _env_int("ENRICH_WORKERS", 2))
     stream_maxlen: int = field(default_factory=lambda: _env_int("STREAM_MAXLEN", 5000))
     block_ms: int = field(default_factory=lambda: _env_int("STREAM_BLOCK_MS", 5000))
     sweep_interval: float = field(default_factory=lambda: _env_float("SWEEP_INTERVAL", 5.0))
@@ -404,6 +405,7 @@ class Config:
                 "fetch_workers": self.pipeline.fetch_workers,
                 "normalize_workers": self.pipeline.normalize_workers,
                 "embed_workers": self.pipeline.embed_workers,
+                "enrich_workers": self.pipeline.enrich_workers,
                 "stream_maxlen": self.pipeline.stream_maxlen,
             },
             "postgres": {

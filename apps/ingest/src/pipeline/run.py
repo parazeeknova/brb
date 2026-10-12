@@ -25,6 +25,7 @@ from src.pipeline.ctx import PipelineCtx
 from src.stream.bus import (
     STREAM_DISCOVER,
     STREAM_EMBED,
+    STREAM_ENRICH,
     STREAM_RAW,
     StreamBus,
 )
@@ -103,7 +104,9 @@ class Pipeline:
         n_fetch = cfg.pipeline.fetch_workers
         n_norm = cfg.pipeline.normalize_workers
         n_embed = cfg.pipeline.embed_workers
+        n_enrich = cfg.pipeline.enrich_workers
         from src.pipeline import embed as embed_stage
+        from src.pipeline import enrich as enrich_stage
         from src.pipeline import fetch as fetch_stage
         from src.pipeline import normalize as normalize_stage
 
@@ -129,11 +132,19 @@ class Pipeline:
                     name=f"embed-{i}",
                 )
             )
+        for i in range(n_enrich):
+            self._tasks.append(
+                asyncio.create_task(
+                    self._consume(STREAM_ENRICH, enrich_stage.handle_enrich, count=5),
+                    name=f"enrich-{i}",
+                )
+            )
         self._tasks.append(asyncio.create_task(self._graph_metrics_loop(), name="graph-metrics"))
         self._tasks.append(asyncio.create_task(self._status_loop(), name="status"))
         self._tasks.append(asyncio.create_task(self._reap_loop(), name="reap"))
         logger.info(
-            f"Pipeline up: fetch x{n_fetch}, normalize x{n_norm}, embed x{n_embed}, producers on"
+            f"Pipeline up: fetch x{n_fetch}, normalize x{n_norm}, "
+            f"embed x{n_embed}, enrich x{n_enrich}, producers on"
         )
 
     async def run_forever(self) -> None:
@@ -207,6 +218,7 @@ class Pipeline:
     async def _producer_loop(self) -> None:
         assert self.ctx is not None
         from src.pipeline import producers
+        from src.radar.sources.tinyfish_search import tinyfish_search_tick
 
         while not self.stop.is_set():
             total = 0
@@ -215,6 +227,7 @@ class Pipeline:
                 total += await producers.mass_poller_tick(self.ctx)
                 total += await producers.github_tick(self.ctx)
                 total += await producers.dork_tick(self.ctx, self._dork_engine)
+                total += await tinyfish_search_tick(self.ctx)
                 total += await producers.board_poll_tick(self.ctx)
                 total += await producers.company_discovery_tick(self.ctx)
             except asyncio.CancelledError:

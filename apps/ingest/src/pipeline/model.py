@@ -25,6 +25,10 @@ def embed_fields(url_hash: str) -> dict[str, str]:
     return {"url_hash": url_hash}
 
 
+def enrich_fields(company: str, canonical_id: str) -> dict[str, str]:
+    return {"company": company, "canonical_id": canonical_id}
+
+
 def valid_url(url: str) -> bool:
     """parallels the old sweep's URL sanity gate."""
     return bool(url) and url.startswith("http") and len(url) < 2000

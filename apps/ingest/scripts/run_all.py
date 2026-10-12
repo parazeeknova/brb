@@ -341,6 +341,15 @@ def _status_report(watch: bool = False) -> int:
                 rewards = await c.fetchval(
                     "SELECT COUNT(*) FROM decision_events WHERE reward IS NOT NULL"
                 )
+                verified = await c.fetchval("SELECT COUNT(*) FROM job_observations WHERE verified")
+                founders = await c.fetchval(
+                    "SELECT COUNT(*) FROM radar_candidates WHERE founders IS NOT NULL "
+                    "AND founders::text != '[]'"
+                )
+                funded = await c.fetchval(
+                    "SELECT COUNT(*) FROM radar_candidates WHERE funding_stage IS NOT NULL "
+                    "AND funding_stage != ''"
+                )
                 imp = await c.fetchval("SELECT COUNT(*) FROM impressions")
                 outcomes = await c.fetchval("SELECT COUNT(*) FROM unattributed_outcomes")
                 frontier = await c.fetchval(
@@ -363,6 +372,9 @@ def _status_report(watch: bool = False) -> int:
                     "sources_polled": sources_polled,
                     "events": events,
                     "rewards": rewards,
+                    "verified": verified,
+                    "founders": founders,
+                    "funded": funded,
                     "impressions": imp,
                     "outcomes": outcomes,
                     "frontier": frontier,
@@ -573,6 +585,16 @@ def _status_report(watch: bool = False) -> int:
         t_ingest.add_row("24h Queue Frontier", f"{pg.get('frontier', 0):,}", "Observed in last 24h")
         t_ingest.add_row(
             "Dynamic Discovered", f"{pg.get('discovered', 0):,}", "SearXNG / GitHub / YC feeds"
+        )
+        t_ingest.add_row(
+            "Verified Observations",
+            f"{pg.get('verified', 0):,}",
+            "Proven real postings (ATS API / SubQ)",
+        )
+        t_ingest.add_row(
+            "Candidates w/ Founders / Funding",
+            f"{pg.get('founders', 0):,} / {pg.get('funded', 0):,}",
+            "Enrichment coverage",
         )
         t_ingest.add_row(
             "Decision Events / Impressions",

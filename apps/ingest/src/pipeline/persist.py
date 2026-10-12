@@ -29,8 +29,9 @@ async def persist_observation(store: MemoryStore, obs: JobObservation, pid: str)
         async with store._pool.acquire() as conn:
             await conn.execute(
                 """INSERT INTO job_observations (url_hash, url, source, title, snippet,
-                    first_seen, last_seen, freshness_lane, direct_posting_verified)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                    first_seen, last_seen, freshness_lane, direct_posting_verified,
+                    verified, verification_method)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
                 ON CONFLICT (url_hash) DO UPDATE SET last_seen = EXCLUDED.last_seen""",
                 pid,
                 obs.url,
@@ -41,21 +42,32 @@ async def persist_observation(store: MemoryStore, obs: JobObservation, pid: str)
                 obs.observed_at,
                 "review",
                 not obs.source.startswith("github_index:"),
+                obs.verified,
+                obs.verification_method or "",
             )
     except Exception:
         pass
 
 
-async def save_markdown(store: MemoryStore, url_hash: str, markdown: str) -> None:
-    """Archive scraped page text into raw_json so the corpus keeps JD bodies."""
+async def save_content(
+    store: MemoryStore, url_hash: str, markdown: str, company_slug: str = ""
+) -> None:
+    """Archive scraped content + ATS slug into raw_json.
+
+    The normalize stage rehydrates from the DB row, so anything it needs
+    (page text, verified company slug) must be archived here.
+    """
     text = (markdown or "").strip()
-    if not text:
+    if not text and not company_slug:
         return
     try:
-        # Pass a dict, not a pre-serialized string: asyncpg JSON-encodes
-        # jsonb params itself, and a str would double-encode into a scalar
-        # (object || scalar appends instead of merging).
-        payload = {"markdown": text[:MARKDOWN_ARCHIVE_CHARS]}
+        # Dict, not pre-serialized JSON: asyncpg encodes jsonb params itself;
+        # a str would double-encode into a scalar and corrupt the merge.
+        payload: dict[str, Any] = {}
+        if text:
+            payload["markdown"] = text[:MARKDOWN_ARCHIVE_CHARS]
+        if company_slug:
+            payload["company_slug"] = company_slug
         async with store._pool.acquire() as conn:
             await conn.execute(
                 """UPDATE job_observations
@@ -136,6 +148,7 @@ async def persist_candidate(store: MemoryStore, c: JobCandidate) -> None:
             "company_news": c.company_news,
             "osint_signals": c.osint_signals,
             "extra": c.extra,
+            "verified": True,
         }
         await store.upsert_radar_candidate(data)
     except Exception:

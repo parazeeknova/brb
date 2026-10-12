@@ -73,6 +73,9 @@ class FakeStore:
     async def upsert_radar_candidate(self, data: dict[str, Any]) -> None:
         self.candidates.append(data)
 
+    async def set_observation_verified(self, url_hash: str, method: str) -> None:
+        return None
+
 
 def make_ctx(**overrides: Any) -> PipelineCtx:
     base: dict[str, Any] = {
@@ -113,7 +116,7 @@ def test_handle_discover_fetches_persists_archives_and_forwards(monkeypatch) -> 
     from src.pipeline import fetch as fetch_stage
 
     async def fake_markdownify(url: str, timeout: float = 20.0) -> str:
-        return "# Job\n" + "x" * 200
+        return "# Job\n" + "x" * 500
 
     monkeypatch.setattr("src.render.markdownify", fake_markdownify)
     ctx = make_ctx()
@@ -168,6 +171,8 @@ def test_handle_raw_accept_path_uses_real_gates(monkeypatch) -> None:
             "title": obs.title,
             "snippet": "",
             "raw_json": {"markdown": obs.raw_markdown},
+            "verified": True,
+            "verification_method": "ats_api",
         }
     }
     ctx = make_ctx(store=store)

@@ -26,8 +26,8 @@ HV_INTERVAL_S = float(os.environ.get("PRODUCER_HV_INTERVAL_S", "30"))
 MASS_INTERVAL_S = float(os.environ.get("PRODUCER_MASS_INTERVAL_S", "120"))
 INDEX_INTERVAL_S = float(os.environ.get("PRODUCER_INDEX_INTERVAL_S", "60"))
 DORK_INTERVAL_S = float(os.environ.get("PRODUCER_DORK_INTERVAL_S", "60"))
-BOARD_BATCH = int(os.environ.get("PRODUCER_BOARD_BATCH", "25"))
-BOARD_SEM = int(os.environ.get("PRODUCER_BOARD_SEM", "12"))
+BOARD_BATCH = int(os.environ.get("PRODUCER_BOARD_BATCH", "40"))
+BOARD_SEM = int(os.environ.get("PRODUCER_BOARD_SEM", "24"))
 
 _PLACEHOLDER_COMPANY_RX = re.compile(
     r"(?i)^(unknown|n/?a|tbd|to be (determined|announced)|confidential|"

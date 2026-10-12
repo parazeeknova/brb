@@ -34,6 +34,10 @@ async def _infra() -> tuple[object, object, StreamBus] | None:
 
 
 @pytest.mark.asyncio
+async def _always_true(ctx, obs) -> bool:
+    return True
+
+
 async def test_loopback_one_url_to_embedding(monkeypatch) -> None:
     from pathlib import Path as _Path
 
@@ -69,6 +73,9 @@ async def test_loopback_one_url_to_embedding(monkeypatch) -> None:
 
         dedup = FastDeduplicationEngine(enable_redis=False)
         await dedup.initialize()
+        monkeypatch.setattr(
+            "src.pipeline.normalize.verify_posting", lambda ctx, obs: _always_true(ctx, obs)
+        )
         ctx = PipelineCtx(store=store, graph=None, bus=bus, dedup=dedup)
         ctx.known = KnownState()
 

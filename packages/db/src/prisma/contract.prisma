@@ -1,12 +1,4 @@
 // use prisma-8
-//
-// ho corpus read contract. Ingest (Python/asyncpg) owns all DDL; this file
-// mirrors the tables it creates so the TypeScript web app gets typed reads.
-// NEVER migrate/push from this contract against the corpus database —
-// verify drift with `prisma contract infer` instead.
-//
-// Vector columns are Unsupported (Prisma can't decode pgvector); similarity
-// search goes through prisma/sql/*.sql TypedSQL queries with the <=> operator.
 model JobObservation {
   urlHash               String   @id @map("url_hash")
   url                   String
@@ -18,6 +10,8 @@ model JobObservation {
   freshnessLane         String   @default("review") @map("freshness_lane")
   directPostingVerified Boolean  @default(false) @map("direct_posting_verified")
   rawJson               Json     @default("{}") @map("raw_json")
+  verified              Boolean  @default(false)
+  verificationMethod    String   @default("") @map("verification_method")
   createdAt             DateTime @default(now()) @map("created_at")
 
   @@map("job_observations")
@@ -59,6 +53,7 @@ model RadarCandidate {
   companyNews          String   @default("") @map("company_news")
   osintSignals         Json     @default("[]") @map("osint_signals")
   extra                Json     @default("{}")
+  verified             Boolean  @default(false)
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @default(now()) @map("updated_at")
 
@@ -70,9 +65,6 @@ model ObsEmbedding {
   title       String   @default("")
   company     String   @default("")
   contentHash String   @default("") @map("content_hash")
-  // embedding vector(3072) intentionally omitted: v8 emit rejects
-  // Unsupported columns. Vectors live beside this row; similarity goes
-  // through prisma/sql/similarJobs.sql (TypedSQL, <=> operator).
   embeddedAt DateTime @default(now()) @map("embedded_at")
 
   @@map("obs_embeddings")

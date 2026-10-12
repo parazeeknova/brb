@@ -283,6 +283,8 @@ CREATE TABLE IF NOT EXISTS job_observations (
     last_seen             DOUBLE PRECISION DEFAULT 0,
     freshness_lane        TEXT DEFAULT 'review',
     direct_posting_verified BOOLEAN DEFAULT FALSE,
+    verified              BOOLEAN DEFAULT FALSE,
+    verification_method   TEXT DEFAULT '',
     raw_json              JSONB DEFAULT '{{}}'::jsonb,
     created_at            TIMESTAMP DEFAULT NOW()
 );
@@ -332,6 +334,7 @@ CREATE TABLE IF NOT EXISTS radar_candidates (
     company_news          TEXT DEFAULT '',
     osint_signals         JSONB DEFAULT '[]'::jsonb,
     extra                 JSONB DEFAULT '{{}}'::jsonb,
+    verified              BOOLEAN DEFAULT FALSE,
     created_at            TIMESTAMP DEFAULT NOW(),
     updated_at            TIMESTAMP DEFAULT NOW()
 );
@@ -688,6 +691,18 @@ class MemoryStore:
             await conn.execute(
                 "ALTER TABLE company_osint ADD COLUMN IF NOT EXISTS "
                 "expires_at DOUBLE PRECISION NOT NULL DEFAULT 0"
+            )
+            await conn.execute(
+                "ALTER TABLE job_observations ADD COLUMN IF NOT EXISTS "
+                "verified BOOLEAN DEFAULT FALSE"
+            )
+            await conn.execute(
+                "ALTER TABLE job_observations ADD COLUMN IF NOT EXISTS "
+                "verification_method TEXT DEFAULT ''"
+            )
+            await conn.execute(
+                "ALTER TABLE radar_candidates ADD COLUMN IF NOT EXISTS "
+                "verified BOOLEAN DEFAULT FALSE"
             )
             await cls._create_hnsw_indexes(conn)
             await cls._prune_embed_cache(conn)
@@ -1259,7 +1274,9 @@ class MemoryStore:
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT url_hash, url, source, title, snippet, last_seen, raw_json
+                SELECT url_hash, url, source, title, snippet, last_seen, raw_json,
+                       COALESCE(verified, FALSE) AS verified,
+                       COALESCE(verification_method, '') AS verification_method
                 FROM job_observations
                 WHERE url_hash = ANY($1::text[])
                 """,
@@ -1283,6 +1300,19 @@ class MemoryStore:
                 limit,
             )
         return [r["url_hash"] for r in rows]
+
+    async def set_observation_verified(self, url_hash: str, method: str) -> None:
+        """Mark an observation verified (anti-fake: only verified rows gate)."""
+        try:
+            async with self._pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE job_observations SET verified = TRUE, verification_method = $2 "
+                    "WHERE url_hash = $1",
+                    url_hash,
+                    method,
+                )
+        except Exception:
+            pass
 
     async def embed_texts_for(self, url_hashes: list[str]) -> list[dict[str, Any]]:
         """Embed-ready texts for explicit url hashes (stream-driven embed stage).
@@ -1940,11 +1970,11 @@ class MemoryStore:
                     shortlist_probability, verdict, jd_summary,
                     company_description, role_summary, is_remote,
                     founders, funding_stage, funding_info, founder_socials,
-                    company_news, osint_signals, extra
+                    company_news, osint_signals, extra, verified
                 ) VALUES (
                     $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
                     $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
-                    $28,$29,$30,$31,$32,$33,$34,$35
+                    $28,$29,$30,$31,$32,$33,$34,$35,$36
                 )
                 ON CONFLICT (canonical_id) DO UPDATE SET
                     last_seen = EXCLUDED.last_seen,
@@ -2006,6 +2036,7 @@ class MemoryStore:
                         ELSE radar_candidates.osint_signals
                     END,
                     extra = radar_candidates.extra || EXCLUDED.extra,
+                    verified = radar_candidates.verified OR EXCLUDED.verified,
                     updated_at = NOW()
                 """,
                 data.get("canonical_id", ""),
@@ -2043,6 +2074,7 @@ class MemoryStore:
                 data.get("company_news", ""),
                 _jsonb_val(data.get("osint_signals", []), []),
                 _jsonb_val(data.get("extra", {}), {}),
+                bool(data.get("verified", False)),
             )
 
     async def record_rejection(self, canonical_id: str, reason: str, detail: str) -> None:

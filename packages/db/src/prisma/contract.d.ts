@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'019571a3c33451a974662c9bbb0999637b3e34dffc58746fd43be59540a67da4'>;
+  StorageHashBase<'8ef6c9d83da84e7930286323f4bf3fd797a849fcea000d51f7296d792143fab5'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -252,6 +252,8 @@ export type FieldOutputTypes = {
       readonly freshnessLane: CodecTypes['pg/text@1']['output'];
       readonly directPostingVerified: CodecTypes['pg/bool@1']['output'];
       readonly rawJson: CodecTypes['pg/json@1']['output'];
+      readonly verified: CodecTypes['pg/bool@1']['output'];
+      readonly verificationMethod: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
     };
     readonly ObsEmbedding: {
@@ -297,6 +299,7 @@ export type FieldOutputTypes = {
       readonly companyNews: CodecTypes['pg/text@1']['output'];
       readonly osintSignals: CodecTypes['pg/json@1']['output'];
       readonly extra: CodecTypes['pg/json@1']['output'];
+      readonly verified: CodecTypes['pg/bool@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
     };
@@ -336,6 +339,8 @@ export type FieldInputTypes = {
       readonly freshnessLane: CodecTypes['pg/text@1']['input'];
       readonly directPostingVerified: CodecTypes['pg/bool@1']['input'];
       readonly rawJson: CodecTypes['pg/json@1']['input'];
+      readonly verified: CodecTypes['pg/bool@1']['input'];
+      readonly verificationMethod: CodecTypes['pg/text@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
     };
     readonly ObsEmbedding: {
@@ -381,6 +386,7 @@ export type FieldInputTypes = {
       readonly companyNews: CodecTypes['pg/text@1']['input'];
       readonly osintSignals: CodecTypes['pg/json@1']['input'];
       readonly extra: CodecTypes['pg/json@1']['input'];
+      readonly verified: CodecTypes['pg/bool@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
     };
@@ -421,6 +427,8 @@ export type StorageColumnTypes = {
       readonly title: CodecTypes['pg/text@1']['output'];
       readonly url: CodecTypes['pg/text@1']['output'];
       readonly url_hash: CodecTypes['pg/text@1']['output'];
+      readonly verification_method: CodecTypes['pg/text@1']['output'];
+      readonly verified: CodecTypes['pg/bool@1']['output'];
     };
     readonly obs_embeddings: {
       readonly company: CodecTypes['pg/text@1']['output'];
@@ -467,6 +475,7 @@ export type StorageColumnTypes = {
       readonly source_confidence: CodecTypes['pg/float8@1']['output'];
       readonly updated_at: CodecTypes['pg/timestamptz-temporal@1']['output'];
       readonly verdict: CodecTypes['pg/text@1']['output'];
+      readonly verified: CodecTypes['pg/bool@1']['output'];
     };
     readonly source_checkpoints: {
       readonly active: CodecTypes['pg/bool@1']['output'];
@@ -505,6 +514,8 @@ export type StorageColumnInputTypes = {
       readonly title: CodecTypes['pg/text@1']['input'];
       readonly url: CodecTypes['pg/text@1']['input'];
       readonly url_hash: CodecTypes['pg/text@1']['input'];
+      readonly verification_method: CodecTypes['pg/text@1']['input'];
+      readonly verified: CodecTypes['pg/bool@1']['input'];
     };
     readonly obs_embeddings: {
       readonly company: CodecTypes['pg/text@1']['input'];
@@ -551,6 +562,7 @@ export type StorageColumnInputTypes = {
       readonly source_confidence: CodecTypes['pg/float8@1']['input'];
       readonly updated_at: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly verdict: CodecTypes['pg/text@1']['input'];
+      readonly verified: CodecTypes['pg/bool@1']['input'];
     };
     readonly source_checkpoints: {
       readonly active: CodecTypes['pg/bool@1']['input'];
@@ -675,6 +687,24 @@ type ContractBase = Omit<
                   readonly default: {
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/json@1', '{}'>;
+                  };
+                };
+                readonly verified: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
+                readonly verification_method: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
                   };
                 };
                 readonly created_at: {
@@ -1044,6 +1074,15 @@ type ContractBase = Omit<
                     readonly value: DefaultLiteralValue<'pg/json@1', '{}'>;
                   };
                 };
+                readonly verified: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
                 readonly created_at: {
                   readonly nativeType: 'timestamptz';
                   readonly codecId: 'pg/timestamptz-temporal@1';
@@ -1308,6 +1347,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
               };
+              readonly verified: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly verificationMethod: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -1331,6 +1378,8 @@ type ContractBase = Omit<
                 readonly freshnessLane: { readonly column: 'freshness_lane' };
                 readonly directPostingVerified: { readonly column: 'direct_posting_verified' };
                 readonly rawJson: { readonly column: 'raw_json' };
+                readonly verified: { readonly column: 'verified' };
+                readonly verificationMethod: { readonly column: 'verification_method' };
                 readonly createdAt: { readonly column: 'created_at' };
               };
             };
@@ -1516,6 +1565,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
               };
+              readonly verified: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -1571,6 +1624,7 @@ type ContractBase = Omit<
                 readonly companyNews: { readonly column: 'company_news' };
                 readonly osintSignals: { readonly column: 'osint_signals' };
                 readonly extra: { readonly column: 'extra' };
+                readonly verified: { readonly column: 'verified' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
               };
