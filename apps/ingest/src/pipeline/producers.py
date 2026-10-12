@@ -272,7 +272,16 @@ async def board_poll_tick(ctx: Any) -> int:
     urls: list[str] = []
     for obs_list in results:
         urls.extend(o.url for o in obs_list)
-    return await publish_urls(ctx, urls, "board_poll")
+    published = await publish_urls(ctx, urls, "board_poll")
+    # Persist lane/checkpoint state so restarts keep poll frequencies (120s).
+    if await due(ctx.bus.redis, "checkpoints", 120.0):
+        try:
+            from src.radar.sources.sources import persist_checkpoints
+
+            await persist_checkpoints(ctx.store)
+        except Exception:
+            pass
+    return published
 
 
 async def company_discovery_tick(ctx: Any) -> int:

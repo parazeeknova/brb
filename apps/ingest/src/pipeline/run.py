@@ -55,7 +55,10 @@ class Pipeline:
 
         cfg = get_config()
         self._redis = Redis.from_url(
-            cfg.streams.redis_url, decode_responses=True, socket_timeout=5.0
+            cfg.streams.redis_url,
+            decode_responses=True,
+            # Must exceed block_ms: BLOCK parks the socket that long.
+            socket_timeout=cfg.pipeline.block_ms / 1000.0 + 10.0,
         )
         await self._redis.ping()
         bus = StreamBus(

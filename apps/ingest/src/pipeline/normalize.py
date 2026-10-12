@@ -69,6 +69,12 @@ async def normalize_one(ctx: Any, url_hash: str) -> str | None:
         await persist_rejected(ctx.store, obs, pid, rejections)
         return None
 
+    # Gates are the only judges now (no per-candidate LLM): passing means
+    # accepted into the corpus. Per-user fit is scored downstream (web/Clef).
+    from src.radar.core.models import EligibilityState
+
+    candidate.eligibility = EligibilityState.ACCEPTED
+    candidate.verdict = "RULE_PASS"
     candidate.extra["raw_markdown"] = obs.raw_markdown
     candidate.extra["version"] = 1
     candidate.extra["posting_id"] = pid

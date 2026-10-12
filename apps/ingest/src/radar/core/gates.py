@@ -50,6 +50,9 @@ _META_SOURCE_PREFIXES = (
     "discovered",
     "blog",
     "news",
+    "board_poll",
+    "high_volume",
+    "loopback",
 )
 
 
@@ -71,9 +74,16 @@ def _extract_company(observation: JobObservation) -> str:
     from urllib.parse import urlparse
 
     try:
+        from src.radar.sources.discovery import is_aggregator_domain
+
         host = urlparse(observation.url).netloc.lower()
         if host.startswith("www."):
             host = host[4:]
+        # Aggregator/job-board hostnames are not companies: refuse to mint
+        # fake companies ("Zapply", "Linkedin") that would pollute the corpus
+        # and the company graph. Real company resolution happens downstream.
+        if is_aggregator_domain(host):
+            return "Unknown"
         parts = host.split(".")
         if len(parts) >= 2:
             return parts[-2].replace("-", " ").title()
