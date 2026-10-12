@@ -70,6 +70,24 @@ services:
         max-size: "5m"
         max-file: "1"
 
+  openobserve:
+    container_name: ho-openobserve
+    image: public.ecr.aws/zinclabs/openobserve-enterprise:v1.0.3
+    restart: "no"
+    ports:
+      - "5090:5080"
+    environment:
+      - ZO_DATA_DIR=/data
+      - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-root@example.com}
+      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:-Complexpass#123}
+    volumes:
+      - openobserve_data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "1"
+
   neo4j:
     container_name: ho-neo4j
     image: neo4j:community-ubi10
@@ -91,6 +109,7 @@ services:
         max-file: "1"
 
 volumes:
+  openobserve_data:
   agent_memory_data:
   neo4j_data:
   neo4j_logs:

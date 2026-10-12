@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "cross-env NODE_ENV=development bun scripts/dev.mjs",
+    "dev": "uv run python scripts/dev.py",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "run": "PYTHONPATH=.:apps/ingest uv run python apps/ingest/scripts/run_all.py",
@@ -28,8 +28,7 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0",
-    "lefthook": "^2.1.17",
+        "lefthook": "^2.1.17",
     "lerna": "^10.0.1",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
