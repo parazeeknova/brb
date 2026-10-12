@@ -7,6 +7,7 @@ Proves end-to-end wiring without a full pipeline boot.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 
 import pytest
@@ -15,7 +16,7 @@ from src.pipeline import embed as embed_stage
 from src.pipeline import fetch as fetch_stage
 from src.pipeline import normalize as normalize_stage
 from src.pipeline.ctx import KnownState, PipelineCtx
-from src.stream.bus import STREAM_DISCOVER, STREAM_EMBED, STREAM_RAW, StreamBus
+from src.stream.bus import StreamBus, group_for
 
 
 async def _infra() -> tuple[object, object, StreamBus] | None:
@@ -82,25 +83,43 @@ async def test_loopback_one_url_to_embedding(monkeypatch) -> None:
 
         monkeypatch.setattr("src.render.markdownify", fake_markdownify)
 
+        # Isolated test streams: never touch production traffic.
+        t_discover, t_raw, t_embed = "ho:t:discover", "ho:t:raw", "ho:t:embed"
+        for stream in (t_discover, t_raw, t_embed):
+            try:
+                await redis.xgroup_create(stream, group_for(stream), id="0", mkstream=True)
+            except Exception as exc:
+                if "BUSYGROUP" not in str(exc):
+                    raise
         url = f"https://boards.greenhouse.io/loopbacktest/{uuid.uuid4().hex[:8]}"
-        await bus.publish(STREAM_DISCOVER, {"url": url, "source": "loopback"})
-        msgs = await bus.read(STREAM_DISCOVER, "loopback-test", count=5)
+        await bus.publish(t_discover, {"url": url, "source": "loopback"})
+        msgs = await bus.read(t_discover, "loopback-test", count=5)
         assert len(msgs) == 1
-        await fetch_stage.handle_discover(ctx, msgs[0][1])
-        await bus.ack(STREAM_DISCOVER, msgs[0][0])
+        # Re-route handler output onto the test streams.
+        published: list[tuple[str, dict[str, str]]] = []
+        orig_publish = bus.publish
 
-        raw = await bus.read(STREAM_RAW, "loopback-test", count=5)
+        async def capture(stream: str, fields: dict[str, str]):
+            remapped = {"ho:s:raw": t_raw, "ho:s:embed": t_embed}.get(stream, stream)
+            published.append((remapped, fields))
+            return await orig_publish(remapped, fields)
+
+        bus.publish = capture  # type: ignore[method-assign]
+        await fetch_stage.handle_discover(ctx, msgs[0][1])
+        await bus.ack(t_discover, msgs[0][0])
+
+        raw = await bus.read(t_raw, "loopback-test", count=5)
         assert len(raw) == 1
         url_hash = raw[0][1]["url_hash"]
         seen_hash = url_hash
         await normalize_stage.handle_raw(ctx, raw[0][1])
-        await bus.ack(STREAM_RAW, raw[0][0])
+        await bus.ack(t_raw, raw[0][0])
 
-        emb = await bus.read(STREAM_EMBED, "loopback-test", count=5)
+        emb = await bus.read(t_embed, "loopback-test", count=5)
         assert len(emb) == 1
         assert emb[0][1]["url_hash"] == url_hash
         await embed_stage.handle_embed(ctx, emb[0][1])
-        await bus.ack(STREAM_EMBED, emb[0][0])
+        await bus.ack(t_embed, emb[0][0])
 
         # Corpus rows exist.
         rows = await store.fetch_observation_rows([url_hash])
@@ -132,6 +151,9 @@ async def test_loopback_one_url_to_embedding(monkeypatch) -> None:
         except Exception:
             pass
         try:
+            for stream in ("ho:t:discover", "ho:t:raw", "ho:t:embed"):
+                with contextlib.suppress(Exception):
+                    await redis.delete(stream)
             await store.close()
             await redis.aclose()
         except Exception:

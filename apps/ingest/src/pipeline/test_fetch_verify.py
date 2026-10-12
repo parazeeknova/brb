@@ -174,7 +174,7 @@ def test_normalize_unverified_subq_pass_marks_verified(monkeypatch) -> None:
     assert len(store.candidates) == 1
 
 
-def test_normalize_unverified_subq_fail_rejects(monkeypatch) -> None:
+def test_normalize_unverified_subq_fail_accepts_unverified(monkeypatch) -> None:
     store = FakeStore()
 
     async def _rows():
@@ -198,15 +198,27 @@ def test_normalize_unverified_subq_fail_rejects(monkeypatch) -> None:
     async def fake_verify(ctx: Any, obs: Any) -> bool:
         return False
 
-    async def fake_reject(store: Any, obs: Any, pid: str, rej: Any) -> None:
-        store.rejected.append(pid)
+    async def fake_gates(o, hashes, last_seen):
+        from src.radar.core.models import EligibilityState, JobCandidate
+
+        c = JobCandidate(
+            canonical_id="h",
+            source="s",
+            direct_apply_url="https://x",
+            normalized_company="Acme",
+            normalized_role="Engineer",
+            normalized_location="Remote",
+        )
+        c.eligibility = EligibilityState.ACCEPTED
+        return c, []
 
     monkeypatch.setattr("src.pipeline.normalize.verify_posting", fake_verify)
-    monkeypatch.setattr("src.pipeline.normalize.persist_rejected", fake_reject)
+    monkeypatch.setattr("src.pipeline.normalize.run_gates", fake_gates)
     ctx = Ctx(store=store)
     asyncio.run(normalize_stage.handle_raw(ctx, {"url_hash": "h"}))
-    assert len(store.rejected) == 1
-    assert store.candidates == []
+    # tiering: SubQ fail still enters the corpus, only unverified
+    assert len(store.candidates) == 1
+    assert store.candidates[0]["verified"] is False
 
 
 def test_verify_posting_uses_cached_verdict(monkeypatch) -> None:

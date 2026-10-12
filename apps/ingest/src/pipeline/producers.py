@@ -305,41 +305,9 @@ async def board_poll_tick(ctx: Any) -> int:
         observations.extend(obs_list)
     # Structured passthrough: interceptor/workday obs already carry verified
     # content — persist them directly so fetch never re-renders them.
-    from src.pipeline.persist import persist_observation, posting_id, save_content
+    from src.pipeline.persist import persist_structured
 
-    fresh: list[JobObservation] = []
-    try:
-        urls = [o.url for o in observations if o.url.startswith("http")]
-        fresh_urls = set(await ctx.dedup.filter_new_urls(urls))
-        await ctx.dedup.mark_urls_seen(list(fresh_urls))
-        fresh = [o for o in observations if o.url in fresh_urls]
-    except Exception:
-        fresh = observations
-    for obs in fresh:
-        try:
-            if obs.extra.get("verified") is True or obs.extra.get("official_source"):
-                obs.verified = True
-                obs.verification_method = obs.extra.get("verification_method", "ats_board")
-            import time as _time
-
-            obs.observed_at = _time.time()
-            pid = posting_id(obs)
-            await persist_observation(ctx.store, obs, pid)
-            await save_content(
-                ctx.store, pid, obs.raw_markdown, str(obs.extra.get("company_slug", ""))
-            )
-        except Exception:
-            continue
-    published = 0
-    for obs in fresh:
-        try:
-            await ctx.bus.publish(
-                "ho:s:raw",
-                {"url_hash": posting_id(obs), "url": obs.url, "source": obs.source},
-            )
-            published += 1
-        except Exception:
-            break
+    published = await persist_structured(ctx, observations)
     # Persist lane/checkpoint state so restarts keep poll frequencies (120s).
     if await due(ctx.bus.redis, "checkpoints", 120.0):
         try:

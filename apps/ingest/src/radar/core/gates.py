@@ -511,8 +511,10 @@ def gate_source_freshness(
             candidate.freshness_lane = FreshnessLane.URGENT
             return None
         if age_from_evidence > cfg.stale_days * 86400:
+            # Archive, don't reject: old postings are still corpus data
+            # (salary bands, skill demand, company history).
             candidate.freshness_lane = FreshnessLane.STALE
-            return RejectionReason.SOURCE_STALE
+            return None
 
     if is_snapshot_delta and is_official:
         candidate.freshness_lane = FreshnessLane.URGENT
@@ -526,7 +528,7 @@ def gate_source_freshness(
         age = now - prev_seen
         if age > cfg.stale_days * 86400:
             candidate.freshness_lane = FreshnessLane.STALE
-            return RejectionReason.SOURCE_STALE
+            return None
 
     return None
 

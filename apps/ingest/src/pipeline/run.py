@@ -218,6 +218,12 @@ class Pipeline:
     async def _producer_loop(self) -> None:
         assert self.ctx is not None
         from src.pipeline import producers
+        from src.radar.sources.free_apis import (
+            arbeitnow_tick,
+            hn_hiring_tick,
+            remoteok_tick,
+            usajobs_tick,
+        )
         from src.radar.sources.tinyfish_search import tinyfish_search_tick
 
         while not self.stop.is_set():
@@ -233,6 +239,10 @@ class Pipeline:
                     tinyfish_search_tick(self.ctx),
                     producers.board_poll_tick(self.ctx),
                     producers.company_discovery_tick(self.ctx),
+                    arbeitnow_tick(self.ctx),
+                    remoteok_tick(self.ctx),
+                    hn_hiring_tick(self.ctx),
+                    usajobs_tick(self.ctx),
                     return_exceptions=True,
                 )
                 total = sum(r for r in results if isinstance(r, int))

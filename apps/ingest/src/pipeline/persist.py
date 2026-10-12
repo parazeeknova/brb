@@ -9,6 +9,7 @@ of dropping them after gating.
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from typing import Any
 
 from src.logging import get_logger
@@ -111,7 +112,7 @@ async def persist_rejected(
         pass
 
 
-async def persist_candidate(store: MemoryStore, c: JobCandidate) -> None:
+async def persist_candidate(store: MemoryStore, c: JobCandidate, verified: bool = True) -> None:
     try:
         data: dict[str, Any] = {
             "canonical_id": c.canonical_id,
@@ -148,7 +149,7 @@ async def persist_candidate(store: MemoryStore, c: JobCandidate) -> None:
             "company_news": c.company_news,
             "osint_signals": c.osint_signals,
             "extra": c.extra,
-            "verified": True,
+            "verified": verified,
         }
         await store.upsert_radar_candidate(data)
     except Exception:
@@ -208,3 +209,41 @@ async def record_ats_no_openings(store: MemoryStore, board_url: str) -> None:
 
 def now_ts() -> float:
     return time.time()
+
+
+async def persist_structured(ctx: Any, observations: Sequence[JobObservation | None]) -> int:
+    """Persist verified/structured obs directly + publish raw (no re-render).
+
+    Shared by board polls (ATS interceptor/workday) and free JSON APIs.
+    Dedups persistently first; infers verified flags from extras.
+    """
+    items = [o for o in observations if o is not None]
+    if not items:
+        return 0
+    try:
+        urls = [o.url for o in items if o.url.startswith("http")]
+        fresh_urls = set(await ctx.dedup.filter_new_urls(urls))
+        await ctx.dedup.mark_urls_seen(list(fresh_urls))
+        items = [o for o in items if o.url in fresh_urls]
+    except Exception:
+        pass
+    published = 0
+    for obs in items:
+        try:
+            if obs.extra.get("verified") is True or obs.extra.get("official_source"):
+                obs.verified = True
+                obs.verification_method = obs.extra.get("verification_method", "ats_board")
+            obs.observed_at = now_ts()
+            pid = posting_id(obs)
+            await persist_observation(ctx.store, obs, pid)
+            await save_content(
+                ctx.store, pid, obs.raw_markdown, str(obs.extra.get("company_slug", ""))
+            )
+            await ctx.bus.publish(
+                "ho:s:raw",
+                {"url_hash": pid, "url": obs.url, "source": obs.source},
+            )
+            published += 1
+        except Exception:
+            continue
+    return published

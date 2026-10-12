@@ -130,18 +130,18 @@ async def normalize_one(ctx: Any, url_hash: str) -> tuple[str, str] | None:
     pid = posting_id(obs)
     obs.observed_at = time.time()
 
-    # Anti-fake: ATS rows are verified at fetch; everything else must pass
-    # the SubQ real-posting judgment before entering the corpus.
+    # Tiering, not execution: ATS rows arrive verified; everything else gets
+    # a SubQ judgment when affordable. Passing marks verified; failing (or
+    # SubQ offline) still enters the corpus as UNVERIFIED — unverifiable is
+    # not fake, and without a persona there is nothing to reject for.
     if not is_verified:
-        if not await verify_posting(ctx, obs):
-            from src.radar.core.models import RejectionReason
-
-            await persist_rejected(
-                ctx.store, obs, pid, [("verify", RejectionReason.VERIFY_FAIL, "unverifiable")]
-            )
-            return None
-        with contextlib.suppress(Exception):
-            await ctx.store.set_observation_verified(pid, "subq")
+        try:
+            if await verify_posting(ctx, obs):
+                is_verified = True
+                with contextlib.suppress(Exception):
+                    await ctx.store.set_observation_verified(pid, "subq")
+        except Exception:
+            pass
 
     candidate, rejections = await run_gates(obs, ctx.known.hashes, ctx.known.last_seen)
     if candidate is None:
@@ -169,7 +169,7 @@ async def normalize_one(ctx: Any, url_hash: str) -> tuple[str, str] | None:
     candidate.extra["rank_score"] = rank_score(candidate)
 
     await persist_observation(ctx.store, obs, pid)
-    await persist_candidate(ctx.store, candidate)
+    await persist_candidate(ctx.store, candidate, verified=is_verified)
     await graph_upsert_company(ctx, candidate)
     with contextlib.suppress(Exception):
         await ctx.store.record_pipeline_stage_event("gate_accept", 1)
