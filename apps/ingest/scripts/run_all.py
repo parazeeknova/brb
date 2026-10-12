@@ -752,9 +752,9 @@ def _pipeline_running() -> int | None:
 
 
 async def _system_stats() -> tuple[str, str, str, str, str]:
-    """Startup snapshot of DB, graph, RAG, and event status.
+    """Startup snapshot of DB, graph, RAG, and stream status.
 
-    Returns (pg, graph, rag, ml, discord) human-readable status strings.
+    Returns (pg, graph, rag, events, notice) human-readable status strings.
     """
     import asyncio as _asyncio
 

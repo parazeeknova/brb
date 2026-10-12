@@ -10,7 +10,7 @@ funding) plus the current dork query list, asks the LLM for:
 
 Output is written to intel/planning_suggestions.json and NEVER applied
 automatically: review it, then wire approved queries into your dork
-config or board registry. The pass runs through the shared governor, so
+config or board registry. LLM calls pace themselves locally, so
 it can never blow the LLM rate budget.
 
 Run:  make intel MODE=planning          (or uv run python scripts/intel/planning_pass.py)

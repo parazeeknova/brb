@@ -2,7 +2,7 @@
 budget-controlled LLM matching.
 
 Subpackages:
-- src.radar.core: Models, gating, scoring, governor, salary, signals, queue
+- src.radar.core: Models, gating, scoring, salary, signals
 - src.radar.sources: Board registry, ATS interceptor, GitHub poller, dorking,
   crawler, discovery, instant poller, agents
 - src.radar.engine: Orchestrator, outreach
