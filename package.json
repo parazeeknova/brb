@@ -28,7 +28,7 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-        "lefthook": "^2.1.17",
+    "lefthook": "^2.1.17",
     "lerna": "^10.0.1",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",

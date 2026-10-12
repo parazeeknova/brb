@@ -113,6 +113,8 @@ def _base_env() -> dict[str, str]:
     env = os.environ.copy()
     env.setdefault("OVERNIGHT_LOOP", "true")
     env.setdefault("PYTHONUNBUFFERED", "1")
+    # Corpus runs never prompt: resume/persona grounding is env-only.
+    env.setdefault("HO_NON_INTERACTIVE", "1")
     _paths = [str(PROJECT)]
     if env.get("PYTHONPATH"):
         _paths.append(env["PYTHONPATH"])
@@ -141,6 +143,7 @@ class Child:
             env=self.env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
             text=True,
             bufsize=1,
             start_new_session=True,

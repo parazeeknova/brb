@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -25,6 +26,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.text import Text
 
 ROOT = Path(__file__).resolve().parent.parent
 COMPOSE = ROOT / "docker" / "docker-compose.yml"
@@ -55,7 +57,21 @@ TAG_STYLES: dict[str, str] = {
     "web": "bold cyan",
     "ingest": "bold magenta",
     "otel": "bold blue",
+    "loop": "green",
+    "radar-master": "bold yellow",
 }
+
+# Cycle for radar-worker-N and any future grandchildren.
+WORKER_STYLES: tuple[str, ...] = (
+    "bold green",
+    "bold blue",
+    "bold red",
+    "bold white",
+    "green",
+    "blue",
+)
+
+_CHILD_PREFIX = re.compile(r"^\[([A-Za-z0-9_.-]+)\]\s?(.*)$")
 
 HEALTH_TIMEOUT_S = 120.0
 POLL_S = 2.0
@@ -170,10 +186,47 @@ def compose(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess
     )
 
 
+def style_for(name: str, fallback_tag: str) -> str:
+    """Deterministic color for a log source.
+
+    Known services use TAG_STYLES; radar workers cycle WORKER_STYLES by
+    trailing index (worker-1 -> first color); anything else falls back to
+    the parent child's tag style.
+    """
+    if name in TAG_STYLES:
+        return TAG_STYLES[name]
+    worker = re.fullmatch(r"radar-worker-(\d+)", name)
+    if worker:
+        return WORKER_STYLES[(int(worker.group(1)) - 1) % len(WORKER_STYLES)]
+    return TAG_STYLES.get(fallback_tag, "white")
+
+
+def split_child_prefix(line: str) -> tuple[str | None, str]:
+    """Split loop.py's `[child-name] rest` prefix; (None, line) when absent."""
+    match = _CHILD_PREFIX.match(line)
+    if not match:
+        return None, line
+    return match.group(1), match.group(2)
+
+
+def format_line(tag: str, message: str) -> Text:
+    """One line: colored `[source]` chip + plain message (no markup parsing).
+
+    Grandchild lines forwarded by loop.py (`[radar-worker-1] ...`) are
+    re-tagged to their real source so every worker has its own color.
+    """
+    child, rest = split_child_prefix(message)
+    if child is not None:
+        tag, message = child, rest
+    out = Text()
+    out.append(f"[{tag}] ", style=style_for(tag, tag))
+    out.append(message)
+    return out
+
+
 def log(tag: str, message: str, *, err: bool = False) -> None:
-    """Single color-coded line: `[tag] message` (stderr only on errors)."""
-    style = TAG_STYLES.get(tag, "white")
-    console.print(f"[{style}][{tag}][/{style}] {message}", highlight=False)
+    """Single color-coded line (stderr only on errors)."""
+    console.print(format_line(tag, message), highlight=False, soft_wrap=True)
 
 
 async def preflight(env: dict[str, str]) -> None:
@@ -211,6 +264,7 @@ async def stream_child(spec: ChildSpec, env: dict[str, str]) -> int:
         *spec.argv,
         cwd=str(ROOT),
         env=env,
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )

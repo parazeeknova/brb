@@ -114,3 +114,29 @@ def test_expected_services_include_observability() -> None:
     assert "openobserve" in devmod.EXPECTED_SERVICES
     ports = {name: port for port, name in devmod.TCP_CHECKS}
     assert ports["openobserve"] == 5090
+
+
+def test_style_for_known_worker_and_fallback() -> None:
+    assert devmod.style_for("web", "web") == "bold cyan"
+    assert devmod.style_for("radar-master", "ingest") == "bold yellow"
+    first = devmod.WORKER_STYLES[0]
+    assert devmod.style_for("radar-worker-1", "ingest") == first
+    assert (
+        devmod.style_for("radar-worker-7", "ingest")
+        == devmod.WORKER_STYLES[6 % len(devmod.WORKER_STYLES)]
+    )
+    assert devmod.style_for("mystery", "ingest") == "bold magenta"
+    assert devmod.style_for("mystery", "nope") == "white"
+
+
+def test_split_child_prefix() -> None:
+    assert devmod.split_child_prefix("[radar-worker-2] hello") == ("radar-worker-2", "hello")
+    assert devmod.split_child_prefix("plain line") == (None, "plain line")
+    assert devmod.split_child_prefix("[radar-master]") == ("radar-master", "")
+
+
+def test_format_line_retags_grandchild_and_ignores_markup() -> None:
+    text = devmod.format_line("ingest", "[radar-worker-1] [not-a-style] hi")
+    rendered = text.plain
+    assert rendered == "[radar-worker-1] [not-a-style] hi"
+    assert text.spans[0].style == devmod.style_for("radar-worker-1", "ingest")

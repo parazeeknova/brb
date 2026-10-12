@@ -185,6 +185,7 @@ def load_resume(default_url: str | None = None) -> tuple[str, dict[str, str]]:
     is_non_interactive = (
         bool(url)
         or os.environ.get("NON_INTERACTIVE", "false").lower() == "true"
+        or os.environ.get("HO_NON_INTERACTIVE", "false").lower() == "true"
         or not sys.stdin.isatty()
     )
 
