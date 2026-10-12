@@ -29,6 +29,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # apps/ingest (src.*)
 
 from dotenv import load_dotenv
+from src.stream.redis_url import redis_url  # noqa: E402
 
 # .env is the source of truth: override any shell-inherited vars so the model
 # and budget settings in .env always win.
@@ -65,7 +66,7 @@ async def _status_dashboard() -> str:
         from redis.asyncio import Redis
         from src.stream.bus import ALL_STREAMS
 
-        client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+        client = Redis.from_url(redis_url(), decode_responses=True)
         try:
             depths = {s.rsplit(":", 1)[-1]: await client.xlen(s) for s in ALL_STREAMS}
             parts.append("streams: " + " ".join(f"{k}={v}" for k, v in depths.items()))
@@ -95,6 +96,7 @@ class Child:
         self.env = env
         self.proc: subprocess.Popen[str] | None = None
         self.restarts = 0
+        self.next_retry = 0.0
         self.last_output = time.monotonic()
 
     async def start(self) -> None:
@@ -221,18 +223,24 @@ async def main() -> None:
                         child.stop()
                         with contextlib.suppress(Exception):
                             await child.wait(timeout=8)
-                        if child.restarts >= 5:
-                            print(f"[loop] {child.name} exceeded restarts", flush=True)
-                            continue
                         child.restarts += 1
                         await child.start()
                         continue
                 if not child.is_alive():
-                    if child.restarts >= 5:
-                        print(f"[loop] {child.name} crashed and exceeded restarts", flush=True)
+                    # No restart cap: overnight runs must self-heal forever.
+                    # Per-child backoff (to 5min) so a flapping child neither
+                    # hot-spins nor pauses supervision of healthy siblings.
+                    now = time.monotonic()
+                    if now < child.next_retry:
                         continue
                     child.restarts += 1
-                    print(f"[loop] restarting {child.name} (attempt {child.restarts})", flush=True)
+                    backoff = min(300.0, 5.0 * (2.0 ** min(child.restarts, 6)))
+                    child.next_retry = now + backoff
+                    print(
+                        f"[loop] restarting {child.name} "
+                        f"(attempt {child.restarts}, backoff {backoff:.0f}s)",
+                        flush=True,
+                    )
                     await child.start()
 
             print(await _status_dashboard(), flush=True)

@@ -21,9 +21,41 @@ logger = get_logger("subq")
 BASE_URL = os.environ.get("SUBQ_BASE_URL", "https://api.subq.ai/v1")
 MODEL = os.environ.get("SUBQ_MODEL", "subq-snap-preview")
 TIMEOUT_S = float(os.environ.get("SUBQ_TIMEOUT_S", "20"))
+MAX_RPM = int(os.environ.get("SUBQ_MAX_RPM", "30"))
 
 _disabled_until = 0.0
 _disabled_logged = False
+
+
+def _day_minute_key() -> str:
+    import time as _time
+
+    return _time.strftime("ho:budget:subq:%Y%m%d%H%M", _time.gmtime())
+
+
+async def _rpm_ok(redis: Any = None) -> bool:
+    """Per-minute call cap (credit burn guard). Redis-backed, fail-open."""
+    try:
+        if redis is None:
+            import redis.asyncio as _redis
+
+            from src.stream.redis_url import redis_url
+
+            client = _redis.from_url(redis_url(), decode_responses=True)
+            try:
+                return await _reserve(client)
+            finally:
+                await client.aclose()
+        return await _reserve(redis)
+    except Exception:
+        return True
+
+
+async def _reserve(client: Any) -> bool:
+    used = await client.incr(_day_minute_key())
+    if used == 1:
+        await client.expire(_day_minute_key(), 120)
+    return used <= MAX_RPM
 
 
 def api_key() -> str:
@@ -48,9 +80,13 @@ async def decide(
     questions: dict[str, Any],
     *,
     timeout: float = TIMEOUT_S,
+    redis: Any = None,
 ) -> dict[str, Any]:
     """POST /v1/systemone -> answers dict ({} on any failure, never raises)."""
     if not is_available():
+        return {}
+    if not await _rpm_ok(redis):
+        logger.debug("SubQ per-minute budget exhausted, skipping")
         return {}
     key = api_key()
     try:
@@ -88,7 +124,7 @@ def noul_probability(answers: dict[str, Any], question: str) -> float | None:
         return None
 
 
-async def is_real_posting(title: str, company: str, text: str) -> float | None:
+async def is_real_posting(title: str, company: str, text: str, redis: Any = None) -> float | None:
     """Calibrated P(real current job posting) for one page (None = unknown)."""
     if len(title.strip()) < 4 or len(text) < 400:
         return None  # too thin to judge; never spends model budget
@@ -104,5 +140,6 @@ async def is_real_posting(title: str, company: str, text: str) -> float | None:
                 ),
             }
         },
+        redis=redis,
     )
     return noul_probability(answers, "real")

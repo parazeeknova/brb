@@ -1,15 +1,22 @@
 name: ho
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   searxng:
     container_name: ho-searxng
     image: searxng/searxng:latest
-    restart: "no"
+    restart: unless-stopped
+    mem_limit: 2g
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080
-      - SEARXNG_SECRET=${SEARXNG_SECRET:-changeme}
+      - SEARXNG_SECRET=${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}
     cap_drop:
       - ALL
     cap_add:
@@ -19,16 +26,13 @@ services:
     volumes:
       - ./searxng-settings.yml:/etc/searxng/settings.yml:ro
       - searxng_data:/etc/searxng
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "1"
+    logging: *default-logging
 
   torproxy:
     container_name: ho-torproxy
     image: dperson/torproxy
-    restart: "no"
+    restart: unless-stopped
+    mem_limit: 1g
     network_mode: "host"
     environment:
       LOCATION: "${TOR_EXIT_COUNTRY:-IN}"
@@ -39,76 +43,103 @@ services:
   agent-memory-db:
     container_name: ho-agent-memory-db
     image: pgvector/pgvector:pg18
-    restart: "no"
+    restart: unless-stopped
+    mem_limit: 6g
     ports:
-      - "5443:5432"
+      - "127.0.0.1:5443:5432"
     # 2 pipeline procs x 48 pooled conns + dashboards < 200.
     command: postgres -cmax_connections=200
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: agent_memory
     volumes:
       - agent_memory_data:/var/lib/postgresql
       - ../apps/ingest/scripts/sql/init-pgvector.sql:/docker-entrypoint-initdb.d/init.sql
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "1"
+    logging: *default-logging
 
   redis:
     container_name: ho-redis
     image: redis:alpine
-    restart: "no"
+    restart: unless-stopped
+    mem_limit: 5g
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "1"
+    # requirepass + memory cap: a flood degrades to cache misses, never OOM.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      - --maxmemory
+      - 4gb
+      - --maxmemory-policy
+      - allkeys-lru
+    logging: *default-logging
 
   openobserve:
     container_name: ho-openobserve
     image: public.ecr.aws/zinclabs/openobserve-enterprise:v1.0.3
-    restart: "no"
+    restart: unless-stopped
+    mem_limit: 4g
     ports:
-      - "5090:5080"
+      - "127.0.0.1:5090:5080"
     environment:
       - ZO_DATA_DIR=/data
       - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-root@example.com}
-      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:-Complexpass#123}
+      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:?set ZO_ROOT_USER_PASSWORD in .env}
     volumes:
       - openobserve_data:/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "1"
+    logging: *default-logging
 
   neo4j:
     container_name: ho-neo4j
     image: neo4j:community-ubi10
+    restart: unless-stopped
+    mem_limit: 4g
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
       NEO4J_server_memory_heap_initial__size: 1g
       NEO4J_server_memory_heap_max__size: 2g
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-    restart: "no"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "1"
+    logging: *default-logging
+
+  # The corpus pipeline itself: supervised by loop.py inside, restarted by
+  # compose on crash/reboot. Infra must already run (compose up -d first).
+  pipeline:
+    container_name: ho-pipeline
+    image: ho-ingest
+    build:
+      context: ..
+      dockerfile: apps/ingest/Dockerfile
+    restart: unless-stopped
+    mem_limit: 6g
+    env_file:
+      - ../.env
+    environment:
+      PYTHONPATH: /app:/app/apps/ingest
+      HO_NON_INTERACTIVE: "1"
+      OTEL_ENABLED: "1"
+    command:
+      ["python", "apps/ingest/scripts/run_all.py", "--no-infra", "--procs", "2"]
+    depends_on:
+      agent-memory-db:
+        condition: service_started
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_started
+      searxng:
+        condition: service_started
+    logging: *default-logging
 
 volumes:
   openobserve_data:

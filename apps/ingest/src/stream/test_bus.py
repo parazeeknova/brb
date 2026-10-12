@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 import uuid
 
@@ -20,7 +19,9 @@ def _redis_or_skip() -> object:
     pytest.importorskip("redis")
     from redis.asyncio import Redis
 
-    url = os.environ.get("STREAMS_REDIS_URL", "redis://127.0.0.1:6380/0")
+    from src.stream.redis_url import redis_url
+
+    url = redis_url()
     client = Redis.from_url(url, decode_responses=True, socket_timeout=2.0)
     return client
 

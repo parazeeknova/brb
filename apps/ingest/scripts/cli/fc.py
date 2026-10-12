@@ -17,6 +17,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -74,7 +75,18 @@ def graph_reset() -> None:
 
 
 def graph_shell() -> None:
-    _run([*COMPOSE, "exec", "neo4j", "cypher-shell", "-u", "neo4j", "-p", "password"])
+    _run(
+        [
+            *COMPOSE,
+            "exec",
+            "neo4j",
+            "cypher-shell",
+            "-u",
+            "neo4j",
+            "-p",
+            os.environ.get("NEO4J_PASSWORD", "password"),
+        ]
+    )
 
 
 ACTIONS = {

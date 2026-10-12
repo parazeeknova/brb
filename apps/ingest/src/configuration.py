@@ -120,11 +120,22 @@ class StreamsConfig:
     (urls, hashes, ids) between always-on stage consumer groups.
     """
 
-    redis_url: str = field(
-        default_factory=lambda: _env_str("STREAMS_REDIS_URL", "redis://127.0.0.1:6380/0")
-    )
+    redis_url: str = field(default_factory=lambda: _default_redis_url())
     claim_idle_ms: int = field(default_factory=lambda: _env_int("STREAM_CLAIM_IDLE_MS", 300000))
     max_deliveries: int = field(default_factory=lambda: _env_int("STREAM_MAX_DELIVERIES", 5))
+
+
+def _default_redis_url() -> str:
+    explicit = _env_str("STREAMS_REDIS_URL", "")
+    if explicit:
+        return explicit
+    from urllib.parse import quote as _quote
+
+    password = _env_str("REDIS_PASSWORD", "")
+    auth = f":{_quote(password)}@" if password else ""
+    host = _env_str("REDIS_HOST", "127.0.0.1")
+    port = _env_str("REDIS_PORT", "6380")
+    return f"redis://{auth}{host}:{port}/0"
 
 
 @dataclass
@@ -139,15 +150,27 @@ class Neo4jConfig:
     )
 
 
+def _default_postgres_dsn() -> str:
+    """Full POSTGRES_DSN wins; otherwise build from parts (password from env)."""
+    explicit = os.environ.get("POSTGRES_DSN", "").strip()
+    if explicit:
+        return explicit
+    from urllib.parse import quote as _quote
+
+    user = _env_str("POSTGRES_USER", "postgres")
+    password = _env_str("POSTGRES_PASSWORD", "")
+    host = _env_str("POSTGRES_HOST", "localhost")
+    port = _env_str("POSTGRES_PORT", "5443")
+    db = _env_str("POSTGRES_DB", "agent_memory")
+    auth = f"{user}:{_quote(password)}@" if password else f"{user}@"
+    return f"postgresql://{auth}{host}:{port}/{db}"
+
+
 @dataclass
 class PostgresConfig:
     """PostgreSQL / pgvector settings."""
 
-    dsn: str = field(
-        default_factory=lambda: _env_str(
-            "POSTGRES_DSN", "postgresql://postgres:postgres@localhost:5443/agent_memory"
-        )
-    )
+    dsn: str = field(default_factory=_default_postgres_dsn)
     min_pool: int = field(default_factory=lambda: _env_int("POSTGRES_MIN_POOL", 2))
     max_pool: int = field(default_factory=lambda: _env_int("POSTGRES_MAX_POOL", 25))
     vector_dim: int = field(default_factory=lambda: _env_int("VECTOR_DIM", 1024))

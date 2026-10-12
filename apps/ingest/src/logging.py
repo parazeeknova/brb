@@ -96,6 +96,8 @@ class StructuredLogger:
 
         # JSON to stderr so stdout is free for data piping
         print(json.dumps(payload, default=str), file=sys.stderr)
+        # Ship the same record to OpenObserve when enabled (fail-open).
+        _otel.emit(level.value, message, {"logger": self.name, **merged})
 
     def debug(self, message: str, **kwargs: Any) -> None:
         self._emit(LogLevel.DEBUG, message, **kwargs)
@@ -118,6 +120,66 @@ class StructuredLogger:
 
 # Module-level convenience
 _root = StructuredLogger(name="ho")
+
+
+class _OtelSink:
+    """OTLP log shipper (OpenObserve). Fail-open: never breaks logging.
+
+    Enabled when OTEL_ENABLED=1 (pipeline container sets it). Batches in a
+    background thread; a dead backend only drops telemetry, never logs.
+    """
+
+    def __init__(self) -> None:
+        self._logger = None
+        if os.environ.get("OTEL_ENABLED", "").strip().lower() not in ("1", "true", "yes"):
+            return
+        try:
+            from opentelemetry._logs import set_logger_provider
+            from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+            from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+            from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+            from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+            endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").rstrip("/")
+            if not endpoint:
+                return
+            headers = {}
+            for pair in os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", "").split(","):
+                if "=" in pair:
+                    key, _, value = pair.partition("=")
+                    headers[key.strip()] = value.strip()
+            provider = LoggerProvider(
+                resource=Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "ho")})
+            )
+            provider.add_log_record_processor(
+                BatchLogRecordProcessor(
+                    OTLPLogExporter(endpoint=f"{endpoint}/v1/logs", headers=headers or None)
+                )
+            )
+            set_logger_provider(provider)
+            handler = LoggingHandler(level=0, logger_provider=provider)
+            import logging as _stdlib_logging
+
+            self._logger = _stdlib_logging.getLogger("ho.otel")
+            self._logger.handlers = [handler]
+            self._logger.propagate = False
+        except Exception:
+            self._logger = None
+
+    def emit(self, level: str, message: str, attrs: dict[str, Any]) -> None:
+        if self._logger is None:
+            return
+        try:
+            import logging as _stdlib_logging
+
+            record_level = getattr(_stdlib_logging, level, _stdlib_logging.INFO)
+            safe = {k: v for k, v in attrs.items() if isinstance(v, (str, int, float, bool))}
+            self._logger.log(record_level, message, extra=safe)
+        except Exception:
+            pass
+
+
+_otel = _OtelSink()
 
 
 def get_logger(name: str) -> StructuredLogger:

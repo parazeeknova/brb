@@ -1,9 +1,10 @@
-"""Overnight health monitor: checks the radar pipeline + Azure ingest every N
-seconds and logs a compact health line. Does NOT fix anything; it's the eyes
-for the night shift. Run detached::
+"""Overnight health monitor: corpus + streams + disk, looping or one-shot.
 
-    setsid nohup env PYTHONPATH=$PWD \\
-        uv run python3 scripts/overnight_monitor.py > logs/monitor.out 2>&1 &
+Loop mode logs a compact health line every CHECK_EVERY seconds (OTEL ships
+it when enabled). Check mode (`--check`) evaluates once and exits non-zero
+on problems — wire it to cron + any alerting (mail, webhook, OpenObserve).
+
+    PYTHONPATH=apps/ingest uv run python apps/ingest/scripts/tools/overnight_monitor.py --check
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import asyncio
 from src.http_cache import set_http_cache_store
 from src.logging import get_logger
 from src.memory.pgvector_store import MemoryStore
+from src.stream.redis_url import redis_url
 
 logger = get_logger("overnight_monitor")
 CHECK_EVERY = 240  # seconds
@@ -40,7 +42,7 @@ async def stream_depths() -> str:
         from redis.asyncio import Redis
         from src.stream.bus import ALL_STREAMS
 
-        client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+        client = Redis.from_url(redis_url(), decode_responses=True)
         try:
             parts = []
             for stream in ALL_STREAMS:
@@ -67,6 +69,67 @@ async def check_once(store: MemoryStore) -> dict:
             ),
             "obs": await c.fetchval("SELECT count(*) FROM job_observations"),
         }
+
+
+async def evaluate(store: MemoryStore) -> tuple[list[str], dict]:
+    """One health evaluation. Returns (problems, stats).
+
+    Problems cover: no pipeline procs, DLQ backlog, disk pressure, stale
+    corpus (nothing accepted recently on a running pipeline).
+    """
+    problems: list[str] = []
+    stats: dict = {}
+    try:
+        stats = await check_once(store)
+    except Exception as exc:
+        return [f"db unreachable: {exc}"], stats
+    procs = count_of(r"src[.]pipeline[.]run")
+    stats["pipeline_procs"] = procs
+    if procs <= 0:
+        problems.append("no pipeline processes running")
+    try:
+        from redis.asyncio import Redis
+        from src.stream.bus import STREAM_DLQ
+
+        client = Redis.from_url(redis_url(), decode_responses=True)
+        try:
+            dlq = int(await client.xlen(STREAM_DLQ))
+            stats["dlq"] = dlq
+            if dlq > 100:
+                problems.append(f"dlq backlog {dlq} > 100")
+        finally:
+            await client.aclose()
+    except Exception as exc:
+        problems.append(f"redis unreachable: {exc}")
+    try:
+        import shutil
+
+        usage = shutil.disk_usage("/")
+        pct = usage.used / usage.total * 100.0
+        stats["disk_pct"] = round(pct, 1)
+        if pct > 90.0:
+            problems.append(f"disk {pct:.0f}% > 90%")
+    except Exception:
+        pass
+    return problems, stats
+
+
+async def check_cmd() -> int:
+    """One-shot health check for cron/systemd: prints problems, exits 1 if any."""
+    store = await MemoryStore.create()
+    try:
+        problems, stats = await evaluate(store)
+    finally:
+        await store.close()
+    if problems:
+        print("UNHEALTHY: " + "; ".join(problems), flush=True)
+        return 1
+    print(
+        "HEALTHY: procs={pipeline_procs} accepted={accepted} "
+        "embedded={embedded} obs={obs} dlq={dlq} disk={disk_pct}%".format(**stats),
+        flush=True,
+    )
+    return 0
 
 
 async def main() -> None:
@@ -96,4 +159,8 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    import sys
+
+    if "--check" in sys.argv:
+        raise SystemExit(asyncio.run(check_cmd()))
     asyncio.run(main())

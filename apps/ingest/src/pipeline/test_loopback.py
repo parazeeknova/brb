@@ -19,13 +19,19 @@ from src.pipeline.ctx import KnownState, PipelineCtx
 from src.stream.bus import StreamBus, group_for
 
 
+def _test_redis_url() -> str:
+    from src.stream.redis_url import redis_url
+
+    return redis_url()
+
+
 async def _infra() -> tuple[object, object, StreamBus] | None:
     try:
         from redis.asyncio import Redis
 
         from src.memory.pgvector_store import MemoryStore
 
-        redis = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+        redis = Redis.from_url(_test_redis_url(), decode_responses=True)
         await redis.ping()
         store = await MemoryStore.create()
         return redis, store, StreamBus(redis, maxlen=100, block_ms=500)

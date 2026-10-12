@@ -707,6 +707,7 @@ class MemoryStore:
             await cls._create_hnsw_indexes(conn)
             await cls._prune_embed_cache(conn)
             await cls._prune_http_cache(conn)
+            await cls._prune_stage_events(conn)
         # Lifecycle noise: MemoryStore is opened/closed constantly during board
         # polling, so "initialized"/"closed" at INFO floods the run log. Drop to
         # DEBUG — the connect time is what matters, and that's logged by the pool.
@@ -1025,6 +1026,16 @@ class MemoryStore:
         with contextlib.suppress(Exception):
             await conn.execute(
                 "DELETE FROM embed_cache WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')",
+                older_than_days,
+            )
+
+    @staticmethod
+    async def _prune_stage_events(conn, older_than_days: int = 7) -> None:
+        """Drop pipeline rate-event rows past the dashboard window (15m/60m)."""
+        with contextlib.suppress(Exception):
+            await conn.execute(
+                "DELETE FROM pipeline_stage_events "
+                "WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')",
                 older_than_days,
             )
 

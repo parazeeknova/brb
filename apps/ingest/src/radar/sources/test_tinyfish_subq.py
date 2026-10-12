@@ -139,7 +139,7 @@ async def test_subq_402_trips_breaker(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_is_real_posting_threshold(monkeypatch) -> None:
-    async def fake_decide(state: str, questions: dict, timeout: float = 20.0):
+    async def fake_decide(state: str, questions: dict, timeout: float = 20.0, redis=None):
         return {"real": {"type": "noul", "noul": 0.95}}
 
     monkeypatch.setattr("src.llm.subq.decide", fake_decide)

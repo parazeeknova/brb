@@ -482,8 +482,9 @@ def _status_report(watch: bool = False) -> int:
         try:
             from redis.asyncio import Redis
             from src.stream.bus import ALL_STREAMS
+            from src.stream.redis_url import redis_url
 
-            client = Redis.from_url("redis://127.0.0.1:6380/0", decode_responses=True)
+            client = Redis.from_url(redis_url(), decode_responses=True)
             try:
                 return {s.rsplit(":", 1)[-1]: int(await client.xlen(s)) for s in ALL_STREAMS}
             finally:
@@ -880,6 +881,11 @@ def main() -> int:
     )
     ap.add_argument("--dry-run", action="store_true", help="Start infra only, then stop")
     ap.add_argument(
+        "--no-infra",
+        action="store_true",
+        help="Skip compose management (infra is externally managed, e.g. pipeline container)",
+    )
+    ap.add_argument(
         "--procs",
         type=int,
         default=2,
@@ -912,13 +918,14 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _handle_sig)
 
     async def _run() -> int:
-        if not await _ensure_infra():
-            print("[ho] infra failed; aborting", flush=True)
-            return 1
+        if not args.no_infra:
+            if not await _ensure_infra():
+                print("[ho] infra failed; aborting", flush=True)
+                return 1
+            # Autoheal: if containers exist but are Exited, restart them
+            _autoheal_containers()
         if not await _check_embeds():
             return 1
-        # Autoheal: if containers exist but are Exited, restart them
-        _autoheal_containers()
         _ensure_memory()
         # Startup snapshot: DB / graph / RAG / events.
         pg, graph, rag, ml, disc = await _system_stats()
@@ -968,7 +975,7 @@ def _autoheal_containers() -> None:
     ):
         try:
             r = _sp.run(
-                ["podman", "ps", "-a", "--filter", f"name={name}", "--format", "{{.Status}}"],
+                ["docker", "ps", "-a", "--filter", f"name={name}", "--format", "{{.Status}}"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -976,7 +983,7 @@ def _autoheal_containers() -> None:
             status = (r.stdout or "").strip().split()[0] if r.stdout else "missing"
             if status == "Exited":
                 print(f"[ho] autoheal: restarting {name} (was Exited)", flush=True)
-                _sp.run(["podman", "start", name], capture_output=True, timeout=15)
+                _sp.run(["docker", "start", name], capture_output=True, timeout=15)
             elif status == "missing":
                 print(f"[ho] autoheal: {name} missing — compose up", flush=True)
                 svc = name.removeprefix("ho-")

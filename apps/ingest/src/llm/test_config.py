@@ -30,7 +30,9 @@ class TestLLMConfig:
 
 
 class TestEmbedConfig:
-    def test_default_values(self) -> None:
+    def test_default_values(self, monkeypatch) -> None:
+        for var in ("EMBED_URL", "EMBED_MODEL"):
+            monkeypatch.delenv(var, raising=False)
         cfg = EmbedConfig()
         assert cfg.base_url == ""
         assert cfg.model == "gemini-embedding-2"

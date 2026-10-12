@@ -71,7 +71,7 @@ async def verify_posting(ctx: Any, obs: JobObservation) -> bool:
     except Exception:
         pass
     try:
-        prob = await is_real_posting(title, company, obs.raw_markdown)
+        prob = await is_real_posting(title, company, obs.raw_markdown, redis=ctx.bus.redis)
     except Exception:
         return False
     verdict = prob is not None and prob >= SUBQ_VERIFY_THRESHOLD

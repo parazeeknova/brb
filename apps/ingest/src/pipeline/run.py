@@ -82,7 +82,7 @@ class Pipeline:
         except Exception as exc:
             logger.warning(f"Graph unavailable, continuing without Neo4j intel: {exc}")
 
-        dedup = FastDeduplicationEngine()
+        dedup = FastDeduplicationEngine(redis_url=cfg.streams.redis_url)
         await dedup.initialize()
 
         try:
