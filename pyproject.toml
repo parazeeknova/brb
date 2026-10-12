@@ -7,8 +7,6 @@ dependencies = [
   "asyncpg>=0.30.0",
   "beautifulsoup4>=4.13.0",
   "certifi>=2024.0.0",
-  "discord-py>=2.7.0",
-  "fpdf2>=2.8.7",
   "generalcompute>=0.2.1",
   "httpx[socks]>=0.28.0",
   "markitdown[pdf]>=0.1.6",
@@ -23,16 +21,6 @@ dependencies = [
   "questionary>=2.1.1",
   "redis>=5.0",
   "rich>=15.0.0",
-  # learning system (packages/ml)
-  "lightgbm>=4.5.0",
-  "scikit-learn>=1.6.0",
-  "pandas>=2.2.0",
-  "pyarrow>=17.0.0",
-  "joblib>=1.4.0",
-  "google-api-python-client>=2.140.0",
-  "google-auth>=2.35.0",
-  "google-auth-oauthlib>=1.2.0",
-  "google-cloud-pubsub>=2.27.0",
 ]
 
 [tool.ruff]
@@ -63,15 +51,7 @@ line-ending = "auto"
 known-first-party = ["ho"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/graph/graph_store.py" = ["E501"]
-"packages/ingest/src/memory/pgvector_store.py" = ["E501"]
-# ML ingest daemon: defensive error handling is intentional (must never crash
-# mid-poll). Blind Exception catches are graceful-degradation on purpose.
-"packages/ml/src/outcomes/gmail_push.py" = ["BLE001", "S110"]
-"packages/ml/src/outcomes/outcome_resolver.py" = ["BLE001", "S110"]
-"packages/ml/src/outcomes/events.py" = ["BLE001", "S110"]
-"packages/ml/src/ranking/features.py" = ["BLE001", "S110"]
-"packages/ml/src/ranking/ltr.py" = ["BLE001"]
+"apps/ingest/src/memory/pgvector_store.py" = ["E501"]
 
 [dependency-groups]
 dev = [
@@ -86,10 +66,8 @@ dev = [
 [tool.ty.environment]
 python-version = "3.14"
 extra-paths = [
-  "packages/ingest",
-  "packages",
-  "packages/autofill/scripts",
-  "packages/ingest/scripts",
+  "apps/ingest",
+  "apps/ingest/scripts",
 ]
 
 [tool.ty.src]
@@ -101,7 +79,7 @@ unresolved-import = "warn"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = [".", "packages/ingest", "packages"]
+pythonpath = [".", "apps/ingest"]
 # Tests live alongside their source files. Same-basename test modules
 # (test_queue.py, test_overnight.py) exist in more than one package, so
 # importlib mode loads each by file path and they never collide.

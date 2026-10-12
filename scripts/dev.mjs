@@ -2,7 +2,7 @@
 //
 //  1. Loads .env.development, then .env (gitignored secrets win). Real
 //     environment variables win over both files. Children inherit the merge,
-//     so every app (web, ingest, node) sees one consistent env.
+//     so every app (web, ingest) sees one consistent env.
 //  2. Preflights docker/docker-compose.yml: starts missing services, waits
 //     until every container is running and its TCP port answers.
 //  3. Spawns the web frontend and the ingest pipeline side by side with
@@ -205,7 +205,7 @@ async function main() {
   const env = {
     ...loadEnv(),
     NODE_ENV: "development",
-    PYTHONPATH: [".", "packages/ingest", "packages"].join(path.delimiter),
+    PYTHONPATH: [".", "apps/ingest"].join(path.delimiter),
   };
   await preflight(env);
   const children = [
@@ -213,7 +213,7 @@ async function main() {
     spawnTagged(
       "ingest",
       "uv",
-      ["run", "python", "packages/ingest/scripts/run_all.py"],
+      ["run", "python", "apps/ingest/scripts/run_all.py"],
       env
     ),
   ];

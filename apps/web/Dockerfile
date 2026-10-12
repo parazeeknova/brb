@@ -5,7 +5,6 @@ WORKDIR /app
 
 COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
-COPY packages/node/package.json packages/node/
 RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY apps/web ./apps/web

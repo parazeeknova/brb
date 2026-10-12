@@ -33,8 +33,8 @@ services:
     environment:
       LOCATION: "${TOR_EXIT_COUNTRY:-IN}"
     volumes:
-      - ../packages/ingest/.tor-geoip/geoip:/usr/share/tor/geoip:ro
-      - ../packages/ingest/.tor-geoip/geoip6:/usr/share/tor/geoip6:ro
+      - ../apps/ingest/.tor-geoip/geoip:/usr/share/tor/geoip:ro
+      - ../apps/ingest/.tor-geoip/geoip6:/usr/share/tor/geoip6:ro
 
   agent-memory-db:
     container_name: ho-agent-memory-db
@@ -48,7 +48,7 @@ services:
       POSTGRES_DB: agent_memory
     volumes:
       - agent_memory_data:/var/lib/postgresql
-      - ../packages/ingest/scripts/sql/init-pgvector.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../apps/ingest/scripts/sql/init-pgvector.sql:/docker-entrypoint-initdb.d/init.sql
     logging:
       driver: "json-file"
       options:

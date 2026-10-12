@@ -59,36 +59,34 @@ def test_parse_rejects_non_semver(raw: str) -> None:
 
 
 def test_owning_scope_nested_file() -> None:
-    scopes = ["packages/autofill", "packages/node"]
-    assert vm.owning_scope("packages/node/ats/ashby.ts", scopes) == "packages/node"
+    scopes = ["apps/ingest", "apps/web"]
+    assert vm.owning_scope("apps/web/ats/ashby.ts", scopes) == "apps/web"
 
 
 def test_owning_scope_root_file_is_none() -> None:
-    scopes = ["packages/node"]
+    scopes = ["apps/web"]
     assert vm.owning_scope("package.json", scopes) is None
     assert vm.owning_scope("lefthook.yml", scopes) is None
 
 
 def test_owning_scope_respects_segment_boundary() -> None:
-    scopes = ["packages/node"]
-    assert vm.owning_scope("packages/node2/file.ts", scopes) is None
-    assert vm.owning_scope("packages/node", scopes) == "packages/node"
+    scopes = ["apps/web"]
+    assert vm.owning_scope("apps/other/file.ts", scopes) is None
+    assert vm.owning_scope("apps/web", scopes) == "apps/web"
 
 
 def test_owning_scope_prefers_longest_prefix() -> None:
-    scopes = ["packages/a", "packages/a/b"]
-    assert vm.owning_scope("packages/a/b/c.ts", scopes) == "packages/a/b"
+    scopes = ["apps/a", "apps/a/b"]
+    assert vm.owning_scope("apps/a/b/c.ts", scopes) == "apps/a/b"
 
 
 def test_package_dirs_lists_sorted_subdirs(tmp_path: Path) -> None:
-    (tmp_path / "packages" / "node").mkdir(parents=True)
-    (tmp_path / "packages" / "autofill").mkdir()
     (tmp_path / "apps" / "web").mkdir(parents=True)
+    (tmp_path / "apps" / "ingest").mkdir()
     (tmp_path / "package.json").write_text("{}")
     assert vm.package_dirs(tmp_path) == [
+        "apps/ingest",
         "apps/web",
-        "packages/autofill",
-        "packages/node",
     ]
 
 
@@ -185,7 +183,7 @@ requires-dist = [{ name = "requests" }]
 [[package]]
 name = "ho-ml"
 version = "0.4.9"
-source = { editable = "packages/ml" }
+source = { editable = "apps/ingest" }
 
 [[package]]
 name = "requests"
@@ -264,11 +262,11 @@ def test_e2e_root_bump_syncs_lerna_json(
 
 def _fake_repo(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
-    (root / "packages" / "node").mkdir(parents=True)
-    (root / "packages" / "ingest").mkdir(parents=True)
+    (root / "apps" / "web").mkdir(parents=True)
+    (root / "apps" / "ingest").mkdir(parents=True)
     (root / "package.json").write_text('{"name": "r", "version": "0.0.1"}\n')
     (root / "pyproject.toml").write_text('[project]\nname = "r"\nversion = "0.0.1"\n')
-    (root / "packages" / "node" / "package.json").write_text('{"name": "n", "version": "0.0.1"}\n')
+    (root / "apps" / "web" / "package.json").write_text('{"name": "n", "version": "0.0.1"}\n')
     return root
 
 
@@ -283,21 +281,21 @@ def test_plan_always_bumps_root(tmp_path: Path) -> None:
 
 def test_plan_bumps_only_touched_package(tmp_path: Path) -> None:
     root = _fake_repo(tmp_path)
-    plan = vm.plan_bumps(root, ["packages/node/ats/x.ts", "README.md"])
+    plan = vm.plan_bumps(root, ["apps/web/ats/x.ts", "README.md"])
     by_scope = {b.manifest.scope for b in plan}
-    assert by_scope == {"root", "packages/node"}
+    assert by_scope == {"root", "apps/web"}
 
 
 def test_plan_ignores_manifest_less_package(tmp_path: Path) -> None:
     root = _fake_repo(tmp_path)
-    plan = vm.plan_bumps(root, ["packages/ingest/src/a.py"])
+    plan = vm.plan_bumps(root, ["apps/ingest/src/a.py"])
     assert {b.manifest.scope for b in plan} == {"root"}
 
 
 def test_plan_skips_unparseable_version(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     root = _fake_repo(tmp_path)
-    (root / "packages" / "node" / "package.json").write_text('{"name": "n", "version": "1.2"}\n')
-    plan = vm.plan_bumps(root, ["packages/node/a.ts"])
+    (root / "apps" / "web" / "package.json").write_text('{"name": "n", "version": "1.2"}\n')
+    plan = vm.plan_bumps(root, ["apps/web/a.ts"])
     assert {b.manifest.scope for b in plan} == {"root"}
     assert "skipping" in capsys.readouterr().err
 
@@ -320,8 +318,8 @@ def test_e2e_touched_package_bumps_and_stages(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
 ) -> None:
     root = _fake_repo(tmp_path)
-    (root / "packages" / "ml").mkdir()
-    (root / "packages" / "ml" / "pyproject.toml").write_text(
+    (root / "apps" / "ingest").mkdir(exist_ok=True)
+    (root / "apps" / "ingest" / "pyproject.toml").write_text(
         '[project]\nname = "m"\nversion = "0.0.1"\n'
     )
     _git(root, "init", "-q")
@@ -330,24 +328,22 @@ def test_e2e_touched_package_bumps_and_stages(
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "init")
 
-    (root / "packages" / "node" / "ats").mkdir()
-    (root / "packages" / "node" / "ats" / "x.ts").write_text("1")
-    _git(root, "add", "packages/node/ats/x.ts")
+    (root / "apps" / "web" / "ats").mkdir()
+    (root / "apps" / "web" / "ats" / "x.ts").write_text("1")
+    _git(root, "add", "apps/web/ats/x.ts")
 
     monkeypatch.chdir(root)
     assert vm.main([]) == 0
     out = capsys.readouterr().out
-    assert "packages/node" in out and "0.0.1 -> 0.0.2" in out
+    assert "apps/web" in out and "0.0.1 -> 0.0.2" in out
 
     assert json.loads((root / "package.json").read_text())["version"] == "0.0.2"
-    assert (
-        json.loads((root / "packages" / "node" / "package.json").read_text())["version"] == "0.0.2"
-    )
-    assert "0.0.1" in (root / "packages" / "ml" / "pyproject.toml").read_text()
+    assert json.loads((root / "apps" / "web" / "package.json").read_text())["version"] == "0.0.2"
+    assert "0.0.1" in (root / "apps" / "ingest" / "pyproject.toml").read_text()
 
     staged = _git(root, "diff", "--cached", "--name-only")
     assert "package.json" in staged
-    assert "packages/node/package.json" in staged
+    assert "apps/web/package.json" in staged
 
 
 @needs_git
@@ -367,9 +363,7 @@ def test_e2e_root_only_change_bumps_just_root(
     monkeypatch.chdir(root)
     assert vm.main([]) == 0
     assert json.loads((root / "package.json").read_text())["version"] == "0.0.2"
-    assert (
-        json.loads((root / "packages" / "node" / "package.json").read_text())["version"] == "0.0.1"
-    )
+    assert json.loads((root / "apps" / "web" / "package.json").read_text())["version"] == "0.0.1"
 
 
 @needs_git
