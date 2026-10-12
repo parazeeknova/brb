@@ -93,14 +93,17 @@ async def normalize_one(ctx: Any, url_hash: str) -> tuple[str, str] | None:
     if not rows:
         return None
     obs = _obs_from_row(rows[0])
-    if not obs.raw_markdown or len(obs.raw_markdown) < 100:
+    is_verified = bool(rows[0].get("verified"))
+    # Thin pages die here — unless already verified by construction (ATS /
+    # workday APIs carry title+location but not always full bodies).
+    if (not obs.raw_markdown or len(obs.raw_markdown) < 100) and not is_verified:
         return None
     pid = posting_id(obs)
     obs.observed_at = time.time()
 
     # Anti-fake: ATS rows are verified at fetch; everything else must pass
     # the SubQ real-posting judgment before entering the corpus.
-    if not rows[0].get("verified"):
+    if not is_verified:
         if not await verify_posting(ctx, obs):
             from src.radar.core.models import RejectionReason
 

@@ -83,9 +83,20 @@ async def fetch_one(ctx: Any, url: str, source: str) -> str | None:
     except Exception as exc:
         logger.debug(f"ATS-direct failed for {url}: {exc}")
 
-    # 2-4. Render chain: local static+browser first, TinyFish off-box on shells.
+    # 1b. Structured passthrough: producers already persisted verified content
+    # for this URL (ATS boards, workday search) — never re-render it.
     obs = JobObservation(url=url, source=source, title="", snippet="")
     pid = posting_id(obs)
+    try:
+        existing = await ctx.store.fetch_observation_rows([pid])
+        if existing:
+            row = existing[0]
+            raw = row.get("raw_json")
+            has_content = isinstance(raw, dict) and len(str(raw.get("markdown") or "")) >= 100
+            if row.get("verified") or has_content:
+                return pid
+    except Exception:
+        pass
     md = ""
     try:
         from src.render import markdownify

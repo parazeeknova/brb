@@ -279,3 +279,24 @@ def test_known_state_refreshes_from_store() -> None:
     asyncio.run(known.refresh(store, force=True))
     assert known.hashes == {"abc", "xyz"}
     assert known.last_seen == {"h": 123.0}
+
+
+def test_unfetchable_urls_filtered() -> None:
+    from src.pipeline import producers
+
+    assert producers._is_unfetchable("https://www.linkedin.com/jobs/view/123")
+    assert producers._is_unfetchable("https://www.indeed.com/q-remote-jobs.html")
+    assert producers._is_unfetchable("https://zapply.jobs/l/d/abc")
+    assert not producers._is_unfetchable("https://boards.greenhouse.io/acme/1")
+    assert not producers._is_unfetchable("https://careers.airbnb.com/positions/1")
+
+
+def test_publish_urls_skips_unfetchable() -> None:
+    import asyncio
+
+    from src.pipeline import producers
+
+    ctx = make_ctx()
+    n = asyncio.run(producers.publish_urls(ctx, ["https://www.linkedin.com/jobs/view/1"], "t"))
+    assert n == 0
+    assert ctx.bus.published == []

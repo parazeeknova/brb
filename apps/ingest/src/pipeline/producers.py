@@ -54,6 +54,20 @@ def _hash_board_url(board_url: str) -> str:
     return hashlib.sha256(board_url.encode()).hexdigest()[:8]
 
 
+_UNFETCHABLE_RX = [
+    # Auth-walled or listing pages: never verifiable as postings, always burn
+    # fetch budget. (Aggregator *boards* are still polled; these are dead-end
+    # leaf URLs.)
+    re.compile(r"^https?://(www\.)?linkedin\.com/jobs/", re.IGNORECASE),
+    re.compile(r"^https?://(www\.)?indeed\.com/q-", re.IGNORECASE),
+    re.compile(r"^https?://zapply\.jobs/", re.IGNORECASE),
+]
+
+
+def _is_unfetchable(url: str) -> bool:
+    return any(rx.match(url) for rx in _UNFETCHABLE_RX)
+
+
 async def due(redis: Any, key: str, interval_s: float) -> bool:
     """Cross-process interval guard: True at most once per interval."""
     now = time.time()
@@ -72,6 +86,9 @@ async def publish_urls(ctx: Any, urls: list[str], source: str) -> int:
     from src.pipeline.model import discover_fields, valid_url
 
     clean = [u.strip() for u in urls if u and valid_url(u.strip())]
+    if not clean:
+        return 0
+    clean = [u for u in clean if not _is_unfetchable(u)]
     if not clean:
         return 0
     try:
@@ -171,6 +188,20 @@ async def poll_board(board: dict[str, str], store: Any) -> list[JobObservation]:
 
     logger.info(f"Polling board: {source_id}")
 
+    # Workday CXS search: hundreds of structured postings, zero renders.
+    if "myworkdayjobs.com" in (board_url or "").lower():
+        try:
+            import httpx
+
+            from src.radar.sources.workday import poll_workday_board
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+                return await poll_workday_board(board_url, client)
+        except Exception as exc:
+            logger.warning(f"Workday poll failed for {board_url}: {exc}")
+            record_failure(source_id)
+            return []
+
     try:
         from src.radar.sources.ats_interceptor import intercept_ats_board, parse_ats_slug
 
@@ -269,10 +300,46 @@ async def board_poll_tick(ctx: Any) -> int:
                 return []
 
     results = await asyncio.gather(*(_one(b) for b in batch))
-    urls: list[str] = []
+    observations: list[JobObservation] = []
     for obs_list in results:
-        urls.extend(o.url for o in obs_list)
-    published = await publish_urls(ctx, urls, "board_poll")
+        observations.extend(obs_list)
+    # Structured passthrough: interceptor/workday obs already carry verified
+    # content — persist them directly so fetch never re-renders them.
+    from src.pipeline.persist import persist_observation, posting_id, save_content
+
+    fresh: list[JobObservation] = []
+    try:
+        urls = [o.url for o in observations if o.url.startswith("http")]
+        fresh_urls = set(await ctx.dedup.filter_new_urls(urls))
+        await ctx.dedup.mark_urls_seen(list(fresh_urls))
+        fresh = [o for o in observations if o.url in fresh_urls]
+    except Exception:
+        fresh = observations
+    for obs in fresh:
+        try:
+            if obs.extra.get("verified") is True or obs.extra.get("official_source"):
+                obs.verified = True
+                obs.verification_method = obs.extra.get("verification_method", "ats_board")
+            import time as _time
+
+            obs.observed_at = _time.time()
+            pid = posting_id(obs)
+            await persist_observation(ctx.store, obs, pid)
+            await save_content(
+                ctx.store, pid, obs.raw_markdown, str(obs.extra.get("company_slug", ""))
+            )
+        except Exception:
+            continue
+    published = 0
+    for obs in fresh:
+        try:
+            await ctx.bus.publish(
+                "ho:s:raw",
+                {"url_hash": posting_id(obs), "url": obs.url, "source": obs.source},
+            )
+            published += 1
+        except Exception:
+            break
     # Persist lane/checkpoint state so restarts keep poll frequencies (120s).
     if await due(ctx.bus.redis, "checkpoints", 120.0):
         try:
