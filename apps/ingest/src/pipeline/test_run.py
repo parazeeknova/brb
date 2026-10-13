@@ -103,3 +103,44 @@ def test_shutdown_closes_everything() -> None:
         assert sorted(closed) == ["dedup", "graph", "redis", "store"]
 
     asyncio.run(go())
+
+
+def test_health_server_reports_readiness(monkeypatch) -> None:
+    import json
+    import socket
+    import urllib.request
+
+    from src.pipeline.run import Pipeline, _start_health_server
+
+    probe = socket.socket()
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    monkeypatch.setenv("HEALTH_PORT", str(port))
+
+    async def go() -> None:
+        pipe = Pipeline()
+        _start_health_server(pipe)
+        await asyncio.sleep(0.2)
+
+        def get(path: str):
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as r:
+                return r.status, json.loads(r.read() or b"{}")
+
+        try:
+            status, _ = get("/healthz")
+            assert status == 200
+            try:
+                get("/readyz")
+                raise AssertionError("readyz should 503 before boot")
+            except urllib.error.HTTPError as e:
+                assert e.code == 503
+            pipe.ready = True
+            pipe.ctx = object()
+            status, body = get("/readyz")
+            assert status == 200
+            assert body["status"] == "ready"
+        finally:
+            pipe.stop.set()
+
+    asyncio.run(go())

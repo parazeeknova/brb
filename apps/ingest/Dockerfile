@@ -47,5 +47,6 @@ RUN useradd -m -u 1001 hosvc \
   && chown -R hosvc:hosvc /app /ms-playwright /home/hosvc
 USER hosvc
 
-# No HTTP surface: progress flows through STATUS_EVENT lines, logs and the DB.
-CMD ["python", "apps/ingest/scripts/run_all.py"]
+# No HTTP surface except the health server (HEALTH_PORT, default 8080):
+# progress flows through structured logs, OpenObserve, and the DB.
+CMD ["python", "-m", "src.pipeline.run"]

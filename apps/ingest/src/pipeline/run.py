@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import signal
 import sys
+import threading
+import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -43,6 +45,8 @@ class Pipeline:
         self._redis: Any = None
         self._consumer_seq = 0
         self._dork_engine: Any = None
+        self.started_at = time.monotonic()
+        self.ready = False
 
     # -- boot ----------------------------------------------------------
 
@@ -146,6 +150,7 @@ class Pipeline:
             f"Pipeline up: fetch x{n_fetch}, normalize x{n_norm}, "
             f"embed x{n_embed}, enrich x{n_enrich}, producers on"
         )
+        self.ready = True
 
     async def run_forever(self) -> None:
         loop = asyncio.get_running_loop()
@@ -332,9 +337,66 @@ class Pipeline:
 
 async def amain() -> int:
     pipeline = Pipeline()
+    _start_health_server(pipeline)
     await pipeline.start()
     await pipeline.run_forever()
     return 0
+
+
+def _start_health_server(pipeline: Pipeline) -> None:
+    """Tiny stdlib HTTP server for orchestrator health checks (Dokploy).
+
+    GET /healthz -> 200 always (process alive).
+    GET /readyz  -> 200 once stores/streams/groups are up, else 503.
+    Both return small JSON. Runs on HEALTH_PORT (default 8080) in a daemon
+    thread; never blocks the pipeline.
+    """
+    import json
+    import os
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    port = int(os.environ.get("HEALTH_PORT", "8080"))
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+        def _send(self, code: int, payload: dict[str, Any]) -> None:
+            body = json.dumps(payload).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:
+            alive = sum(1 for t in pipeline._tasks if not t.done())
+            if self.path == "/healthz":
+                self._send(
+                    200,
+                    {
+                        "status": "ok",
+                        "uptime_s": round(time.monotonic() - pipeline.started_at, 1),
+                        "live_tasks": alive,
+                    },
+                )
+            elif self.path == "/readyz":
+                if pipeline.ready and pipeline.ctx is not None:
+                    self._send(200, {"status": "ready", "live_tasks": alive})
+                else:
+                    self._send(503, {"status": "starting", "live_tasks": alive})
+            else:
+                self._send(404, {"status": "unknown path"})
+
+    def _serve() -> None:
+        try:
+            server = HTTPServer(("0.0.0.0", port), Handler)
+            server.serve_forever()
+        except Exception:
+            pass
+
+    thread = threading.Thread(target=_serve, name="healthz", daemon=True)
+    thread.start()
 
 
 def main() -> None:
