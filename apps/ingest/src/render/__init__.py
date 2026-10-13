@@ -144,9 +144,11 @@ async def _pg_cache_pool() -> Any:
     try:
         import asyncpg
 
-        url = os.environ.get(
-            "AGENT_MEMORY_DB_URL", "postgresql://postgres:postgres@127.0.0.1:5443/agent_memory"
-        )
+        url = os.environ.get("AGENT_MEMORY_DB_URL", "").strip()
+        if not url:
+            from src.configuration import get_config
+
+            url = get_config().postgres.dsn
         _pg_cache = await asyncpg.create_pool(url, min_size=0, max_size=2, command_timeout=3)
     except Exception as e:
         logger.warning("render cache: Postgres unavailable; in-memory only", error=str(e))

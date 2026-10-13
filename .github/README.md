@@ -21,8 +21,7 @@ The goal is not a bigger scrape. It is a corpus you can trust: every row is eith
 
 ## Performance
 
-HO runs as a continuous stream pipeline (Redis Streams between stages), not
-batch sweeps. Measured on 2 local processes over 2-minute windows:
+HO runs as a continuous stream pipeline (Redis Streams between stages), not batch sweeps. Measured on 2 local processes over 2-minute windows:
 
 | What | Observed |
 | --- | --- |
@@ -32,57 +31,33 @@ batch sweeps. Measured on 2 local processes over 2-minute windows:
 | Embeddings | Gemini 3072-d, batched, content-hash deduped |
 | Founders / funding | parsed from search evidence, cached 7d, graphed |
 
-End-to-end rate is consumer-bound (fetch renders, verification judgments),
-never discovery-bound. Backpressure is explicit: capped streams, BLOCK
-reads, persistent dedup, DLQ for poison messages.
+End-to-end rate is consumer-bound (fetch renders, verification judgments), never discovery-bound. Backpressure is explicit: capped streams, BLOCK reads, persistent dedup, DLQ for poison messages.
 
 # System Architecture
 
-Two apps, one corpus. The ingest service builds it; the web app (and its
-Prisma contract in `packages/db`) reads it. Everything below is the ingest
-half — the part that runs 24/7.
+Two apps, one corpus. The ingest service builds it; the web app (and its Prisma contract in `packages/db`) reads it. Everything below is the ingest half — the part that runs 24/7.
 
 The important architectural properties:
 
-- **Continuous, not batched.** Stages run forever as Redis-Streams consumer
-  groups. No sweeps, no phases, no global barriers.
-- **Tiered trust.** Rows are `verified` (ATS APIs, decision-model judgments)
-  or `unverified` (real-looking, unproven). Unverifiable is not fake — but
-  only verified rows are claimed as such.
-- **Postgres is the record store; Redis is motion; Neo4j is intel.**
-  Streams carry tiny routing payloads; bodies live in Postgres.
+- **Continuous, not batched.** Stages run forever as Redis-Streams consumer groups. No sweeps, no phases, no global barriers.
+- **Tiered trust.** Rows are `verified` (ATS APIs, decision-model judgments) or `unverified` (real-looking, unproven). Unverifiable is not fake — but only verified rows are claimed as such.
+- **Postgres is the record store; Redis is motion; Neo4j is intel.** Streams carry tiny routing payloads; bodies live in Postgres.
 
 ## 1. Discovery (11 producer types, always on)
 
-ATS-direct JSON (Greenhouse/Lever/Ashby), Workday CXS bulk import, ATS board
-polls, high-volume URL discovery, mass slug poller, GitHub indexes, SearXNG
-dorks, TinyFish web search (12k/day), free JSON firehoses (Arbeitnow,
-RemoteOK, HN hiring threads, USAJobs), and company discovery. Interval-guarded
-per source, persistently deduped (Redis, 7d TTL), backpressured by stream caps.
+ATS-direct JSON (Greenhouse/Lever/Ashby), Workday CXS bulk import, ATS board polls, high-volume URL discovery, mass slug poller, GitHub indexes, SearXNG dorks, TinyFish web search (12k/day), free JSON firehoses (Arbeitnow, RemoteOK, HN hiring threads, USAJobs), and company discovery. Interval-guarded per source, persistently deduped (Redis, 7d TTL), backpressured by stream caps.
 
 ## 2. Fetch (24 workers/proc)
 
-ATS URLs take the sub-second JSON path (verified by construction). Everything
-else renders locally, with TinyFish Fetch as the off-box fallback for JS
-shells. Scraped bodies are archived into the observation row; already-
-persisted structured rows are never re-rendered. Unfetchable leaf URLs
-(auth-walled LinkedIn views, Indeed search pages, JS wrappers) are filtered
-at publish so they never burn fetch budget.
+ATS URLs take the sub-second JSON path (verified by construction). Everything else renders locally, with TinyFish Fetch as the off-box fallback for JS shells. Scraped bodies are archived into the observation row; already- persisted structured rows are never re-rendered. Unfetchable leaf URLs (auth-walled LinkedIn views, Indeed search pages, JS wrappers) are filtered at publish so they never burn fetch budget.
 
 ## 3. Normalize (16 workers/proc)
 
-Deterministic gates only: URL quality, duplicates, role classification (never
-rejects — every role/level/function enters), freshness lanes (stale rows are
-archived, not rejected). ATS rows arrive verified; the rest get a SubQ
-`systemone` real-posting judgment (cached by content hash, 30/min cap, 402
-breaker). Pass or fail, substantive rows enter tiered; thin garbage dies.
+Deterministic gates only: URL quality, duplicates, role classification (never rejects — every role/level/function enters), freshness lanes (stale rows are archived, not rejected). ATS rows arrive verified; the rest get a SubQ `systemone` real-posting judgment (cached by content hash, 30/min cap, 402 breaker). Pass or fail, substantive rows enter tiered; thin garbage dies.
 
 ## 4. Embed + Enrich
 
-Embeddings (Gemini 3072-d, batched, content-hash deduped) land in pgvector.
-Enrichment attaches founders/funding parsed from search evidence (cached 7d
-in `company_osint`) onto candidate rows and Neo4j (`FOUNDED_BY`,
-`HAS_FUNDING`), so the graph grows relations again.
+Embeddings (Gemini 3072-d, batched, content-hash deduped) land in pgvector. Enrichment attaches founders/funding parsed from search evidence (cached 7d in `company_osint`) onto candidate rows and Neo4j (`FOUNDED_BY`, `HAS_FUNDING`), so the graph grows relations again.
 
 ```mermaid
 flowchart TD
@@ -344,9 +319,8 @@ class SUPER,HEALTH,DEPLOY opsNode
 
 class NOTE_TRUST,NOTE_SCALE,NOTE_DEPLOY noteNode
 ```
-Postgres holds every record (observations, candidates, embeddings,
-checkpoints). Redis holds motion (streams, dedup, budgets) and is safe to
-lose. Neo4j holds derived company intel and rebuilds from the corpus.
+
+Postgres holds every record (observations, candidates, embeddings, checkpoints). Redis holds motion (streams, dedup, budgets) and is safe to lose. Neo4j holds derived company intel and rebuilds from the corpus.
 
 ## 5. Engineering Principles, Reliability & Roadmap
 

@@ -71,7 +71,12 @@ class DorkingEngine:
     time filtering. Results are deduplicated across runs via _seen_urls.
     """
 
-    def __init__(self, searxng_url: str = "http://localhost:8080") -> None:
+    def __init__(self, searxng_url: str | None = None) -> None:
+        if searxng_url is None:
+            from src.configuration import get_config
+
+            base = get_config().searxng.url.rstrip("/")
+            searxng_url = base[: -len("/search")] if base.endswith("/search") else base
         self.searxng_url = searxng_url.rstrip("/")
         self._seen_urls: set[str] = set()
 

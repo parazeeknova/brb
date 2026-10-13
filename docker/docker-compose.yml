@@ -47,7 +47,6 @@ services:
     mem_limit: 6g
     ports:
       - "127.0.0.1:5443:5432"
-    # 2 pipeline procs x 48 pooled conns + dashboards < 200.
     command: postgres -cmax_connections=200
     environment:
       POSTGRES_USER: postgres
@@ -67,7 +66,6 @@ services:
       - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
-    # requirepass + memory cap: a flood degrades to cache misses, never OOM.
     command:
       - redis-server
       - --appendonly
@@ -112,8 +110,6 @@ services:
       - neo4j_logs:/logs
     logging: *default-logging
 
-  # The corpus pipeline itself: supervised by loop.py inside, restarted by
-  # compose on crash/reboot. Infra must already run (compose up -d first).
   pipeline:
     container_name: ho-pipeline
     image: ho-ingest
@@ -122,12 +118,22 @@ services:
       dockerfile: apps/ingest/Dockerfile
     restart: unless-stopped
     mem_limit: 6g
+    ports:
+      - "127.0.0.1:18080:8080"
     env_file:
+      - ../.env.development
       - ../.env
     environment:
       PYTHONPATH: /app:/app/apps/ingest
       HO_NON_INTERACTIVE: "1"
       OTEL_ENABLED: "1"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: agent-memory-db
+      POSTGRES_PORT: 5432
+      NEO4J_URI: bolt://neo4j:7687
+      SEARXNG_URL: http://searxng:8080/search
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
     command:
       ["python", "apps/ingest/scripts/run_all.py", "--no-infra", "--procs", "2"]
     depends_on:
