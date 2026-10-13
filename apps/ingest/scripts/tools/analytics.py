@@ -141,7 +141,6 @@ def main() -> None:
     for name, path in (
         ("project (excluding venv/dump)", PROJECT),
         ("intel", PROJECT / "intel"),
-        ("logs", PROJECT / "logs"),
     ):
         size = 0
         if name.startswith("project"):

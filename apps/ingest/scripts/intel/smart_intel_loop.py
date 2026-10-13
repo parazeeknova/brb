@@ -3,8 +3,9 @@
 Runs smart_intel.py every REFRESH_EVERY seconds on the local box (NOT the
 relic). Kept alive by the watchdog. Exports intel/smart_intel.json+csv.
 
-    setsid nohup env PYTHONPATH=$PWD uv run python3 scripts/intel/smart_intel_loop.py \
-        > logs/smart_intel_loop.out 2>&1 &
+    # logs stream to stdout (docker json-file rotation / OpenObserve);
+    # never redirect to files.
+    # setsid nohup env PYTHONPATH=$PWD uv run python3 scripts/intel/smart_intel_loop.py &
 """
 
 from __future__ import annotations

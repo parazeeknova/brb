@@ -2,7 +2,9 @@
 the vector-intel exports (recommendations.json/csv) from the current
 obs_embeddings. Runs detached so the pipeline is untouched.
 
-    setsid nohup env PYTHONPATH=$PWD uv run python3 scripts/intel/intel_loop.py > logs/intel_loop.out 2>&1 &
+    # logs stream to stdout (docker json-file rotation / OpenObserve);
+    # never redirect to files.
+    # setsid nohup env PYTHONPATH=$PWD uv run python3 scripts/intel/intel_loop.py &
 """
 
 from __future__ import annotations
