@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { HeroJobCard } from "@/components/hero-job-card";
 import { JobCard } from "@/components/jobs-tab";
 import { HowItWorks, MarketingSections } from "@/components/marketing-sections";
 import {
@@ -17,7 +18,6 @@ import { JOBS } from "@/lib/jobs-data";
 const TITLE = "HO · A job search engine that learns";
 const DESC =
   "HO discovers jobs across the web, ranks them against real experience, writes grounded applications and learns from every outcome.";
-const [HERO_FEATURED_JOB] = JOBS;
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -270,7 +270,7 @@ function Landing() {
           </div>
           <div className="relative mx-auto w-full max-w-md">
             {/* <HeroJobCarousel /> */}
-            {HERO_FEATURED_JOB && <JobCard job={HERO_FEATURED_JOB} i={0} />}
+            <HeroJobCard blockSize={8} duration={1800} />
           </div>
         </section>
       </div>

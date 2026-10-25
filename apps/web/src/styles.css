@@ -435,6 +435,62 @@
   animation: hero-leaf-fall 14s steps(24) infinite;
 }
 
+.pixel-job-wipe {
+  display: grid;
+  isolation: isolate;
+  position: relative;
+  perspective: 600px;
+}
+.pixel-job-layer {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.pixel-job-layer > article,
+.pixel-job-relief-layer > article {
+  height: 100%;
+  animation: none;
+  transform: none;
+}
+.pixel-job-relief-layer,
+.pixel-job-relief-shading {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translate3d(0, -1px, 20px);
+  backface-visibility: hidden;
+  will-change: transform;
+  contain: layout style;
+  z-index: 1;
+}
+.pixel-job-wipe[data-mode="blocks"] .pixel-job-relief-layer,
+.pixel-job-wipe[data-mode="blocks"] .pixel-job-relief-shading {
+  visibility: visible;
+}
+.pixel-job-wipe[data-transitioning="true"] .pixel-job-layer > article,
+.pixel-job-relief-layer > article {
+  background:
+    linear-gradient(180deg, var(--glass-strong), var(--glass)),
+    var(--background);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.pixel-job-relief-shading {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  z-index: 2;
+}
+.pixel-job-relief-shading canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+.pixel-job-clips {
+  position: absolute;
+  pointer-events: none;
+}
+
 .hero-carousel {
   max-width: 100%;
   height: 23rem;
