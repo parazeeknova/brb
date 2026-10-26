@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 
 import { BrandIcon } from "@/components/brand-icon";
 import { HeroJobCard } from "@/components/hero-job-card";
@@ -186,6 +187,9 @@ function CompaniesHiringCarousel({ dark }: { dark: boolean }) {
           key={company.file}
           src={`/company-logos/${dark && company.darkFile ? company.darkFile : company.file}.svg`}
           width={company.width}
+          style={
+            { "--company-logo-width": `${company.width}px` } as CSSProperties
+          }
         />
       ))}
     </div>
@@ -270,17 +274,17 @@ function Landing() {
 
         {/* Hero */}
         <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 pt-8 pb-12 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:gap-8 sm:pt-10 lg:gap-16 lg:pt-16 lg:pb-24">
-          <div>
+          <div className="text-center sm:text-left">
             <h1 className="text-4xl leading-[1.15] sm:text-[clamp(2rem,4.5vw,3.75rem)]">
               A job search
               <br />
               that learns.
             </h1>
-            <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed sm:text-base lg:text-lg">
+            <p className="text-muted-foreground mx-auto mt-6 max-w-md text-lg leading-relaxed sm:mx-0 sm:text-base lg:text-lg">
               BRB scans the web for fresh roles, ranks them against your real
               experience and tells you plainly what to apply for.
             </p>
-            <div className="mt-9 flex flex-wrap items-center gap-5">
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-5 sm:justify-start">
               <Link
                 to="/app"
                 className="btn-honey group flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
@@ -440,24 +444,36 @@ function Landing() {
         <div className="mt-8 space-y-3">
           {[
             {
-              a: "BRB is an open-source job discovery and matching project. It brings together employer postings and explores how your real experience can help you decide which roles deserve your time.",
-              q: "What is BRB?",
+              a: "Start with your resume, a few projects or examples of your work, and the kind of role you want. In chat, BRB turns those details into a reusable career profile, including your skills, experience, location and preferences. You can refine it as your search changes.",
+              q: "What do I need to get started?",
             },
             {
-              a: "The featured examples link to real employer postings on Ashby and Greenhouse. Our source guides also cover LinkedIn, Y Combinator, Workday and Lever. Listings may change or close, so always check the employer's original page.",
-              q: "Where do the job examples come from?",
+              a: "BRB compares your career profile with requirements in the continuously updated job corpus. Each recommendation explains relevant experience, gaps and practical constraints such as location or seniority, so you can decide whether the role deserves your time. A match is guidance, not an interview guarantee.",
+              q: "How does BRB decide which jobs fit me?",
             },
             {
-              a: "The notes on this landing page illustrate an example candidate profile. They are not an assessment of your experience or a guarantee of eligibility. Use the full role requirements to make your own decision.",
-              q: "Are the fit notes personalized to me?",
+              a: "Yes. Autofill prepares repetitive fields and your selected documents. You check the answers, provide anything that needs your judgment and make the final submission yourself. You choose the roles; BRB helps with the repetitive work.",
+              q: "Can I check an application before it is submitted?",
             },
             {
-              a: "Yes. View role opens the employer's original posting, where you can confirm availability and follow its application process. BRB is independent of the employers and job platforms shown here.",
-              q: "Can I apply to the featured roles?",
+              a: "Tailoring uses the experience, projects and achievements in your profile to emphasize what matters for a particular role. It should not invent employers, qualifications or results. Review and edit the resume and cover letter before you use them; missing facts need to come from you.",
+              q: "Will tailoring add skills or experience I do not have?",
             },
             {
-              a: "Yes. You can explore the code, follow development and report issues in the parazeeknova/brb GitHub repository linked below.",
-              q: "Is BRB open source?",
+              a: "One pack is a tailored resume and cover letter for one role. Packs and autofill have separate allowances, so you can use the documents to apply manually without spending an autofill credit.",
+              q: "What do I get in an application pack?",
+            },
+            {
+              a: "One autofill credit covers up to five minutes of active browser work. Longer forms ask before using another credit. Logins, verification checks and questions requiring your judgment are handed back to you. If a BRB-side error interrupts the run, the affected credit is restored. A credit covers browser work rather than a guaranteed completed application.",
+              q: "What happens with long forms, logins or verification checks?",
+            },
+            {
+              a: "Your profile and saved jobs stay available, and you can still use the employer's application link. Choose a $5 top-up for 10 autofill credits or a larger monthly plan if you need more. There are no automatic top-ups or annual commitments. Monthly allowances reset each billing cycle.",
+              q: "What happens when I use all my credits?",
+            },
+            {
+              a: "Your career profile is used for matching and tailoring. When you autofill a role, the relevant answers and documents are prepared for that employer's application form. You review what is being shared before submission. Dodo Payments handles checkout separately from your application documents.",
+              q: "Who receives my resume and application details?",
             },
           ].map((faq) => (
             <details key={faq.q} className="glass rounded-2xl px-5 py-4">
@@ -473,23 +489,23 @@ function Landing() {
       <footer className="mx-auto max-w-6xl pt-4 pb-10">
         <div className="pixel-footer relative overflow-hidden">
           <div aria-hidden className="pixel-footer-checks h-3" />
-          <div className="border-moss/25 grid items-center gap-6 border-b-2 border-dashed px-6 py-10 sm:px-8 lg:grid-cols-[1fr_auto] lg:px-10">
+          <div className="border-moss/25 grid items-center gap-6 border-b-2 border-dashed px-6 py-10 text-center sm:px-8 sm:text-left lg:grid-cols-[1fr_auto] lg:px-10">
             <div>
               <p className="font-pixel text-moss text-xs tracking-widest">
                 NEXT LEVEL: YOUR NEXT ROLE
               </p>
-              <h2 className="mt-4 max-w-xl text-3xl leading-tight sm:text-4xl">
+              <h2 className="mx-auto mt-4 max-w-xl text-3xl leading-tight sm:mx-0 sm:text-4xl">
                 A little less searching.
                 <br />A lot more possibility.
               </h2>
-              <p className="text-muted-foreground mt-4 max-w-lg leading-relaxed">
+              <p className="text-muted-foreground mx-auto mt-4 max-w-lg leading-relaxed sm:mx-0">
                 Let BRB find the roles that fit. Save your energy for what comes
                 next.
               </p>
             </div>
             <Link
               to="/app"
-              className="btn-honey group inline-flex min-h-12 w-fit items-center gap-3 rounded-2xl px-6 py-3 font-bold"
+              className="btn-honey group mx-auto inline-flex min-h-12 w-fit items-center gap-3 rounded-2xl px-6 py-3 font-bold sm:mx-0"
             >
               Start your next chapter
               <ArrowIcon size={14} />

@@ -24,7 +24,7 @@ export function JobCard({ job, i }: { job: Job; i: number }) {
     >
       <div className="flex items-center gap-3">
         {job.logo ? (
-          <span className="glass grid size-11 shrink-0 place-items-center rounded-xl p-2">
+          <span className="glass grid size-9 shrink-0 place-items-center rounded-xl p-1.5 sm:size-11 sm:p-2">
             <img
               src={job.logo}
               alt=""
@@ -32,8 +32,8 @@ export function JobCard({ job, i }: { job: Job; i: number }) {
               height={28}
               className={
                 job.logoDark
-                  ? "size-7 object-contain dark:hidden"
-                  : "size-7 object-contain"
+                  ? "size-6 object-contain sm:size-7 dark:hidden"
+                  : "size-6 object-contain sm:size-7"
               }
             />
             {job.logoDark && (
@@ -42,7 +42,7 @@ export function JobCard({ job, i }: { job: Job; i: number }) {
                 alt=""
                 width={28}
                 height={28}
-                className="hidden size-7 object-contain dark:block"
+                className="hidden size-6 object-contain sm:size-7 dark:block"
               />
             )}
           </span>

@@ -616,6 +616,17 @@
   flex: none;
   object-fit: contain;
 }
+@media (width < 40rem) {
+  .logo-marquee-image {
+    width: calc(var(--company-logo-width) * 0.68);
+    height: 30px;
+  }
+  .logo-marquee-set {
+    gap: 2rem;
+    height: 2.5rem;
+    padding-inline-end: 2rem;
+  }
+}
 .dark .logo-marquee-image--lighten-in-dark {
   filter: brightness(0) invert(1);
 }

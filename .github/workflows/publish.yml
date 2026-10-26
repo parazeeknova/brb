@@ -17,12 +17,11 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  actions: read
 
 jobs:
-  # No checks re-run here by design: the `ci` workflow already gated the PR,
-  # and branch protection (required checks + require-branches-up-to-date)
-  # guarantees main only receives green, up-to-date code. Rerunning the same
-  # gates on the merge commit would be pure duplication.
+  # PR CI runs the checks; publishing waits for the images, then deploys only
+  # affected apps and verifies their runtime health and public web revision.
   detect:
     name: detect-changed-images
     runs-on: ubuntu-latest
@@ -37,8 +36,11 @@ jobs:
       - id: diff
         env:
           REBUILD_ALL: ${{ inputs.rebuild_all || false }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          before=${{ github.event.before }}
+          # Compare against the last successful publish/deploy, so a replaced
+          # pending concurrency run cannot skip changes from an earlier merge.
+          before=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
           sha=${{ github.sha }}
           if [[ "$REBUILD_ALL" == true || -z "$before" || "$before" == 0000* ]]; then
             # No history to diff against (fresh branch): build everything once.
@@ -101,11 +103,11 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - name: Verify Dokploy access before building
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
-          DOKPLOY_PROJECT_ID: ${{ vars.DOKPLOY_PROJECT_ID }}
-          DOKPLOY_WEB_APP_ID: ${{ vars.DOKPLOY_WEB_APP_ID }}
-          DOKPLOY_INGEST_APP_ID: ${{ vars.DOKPLOY_INGEST_APP_ID }}
+          DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
+          DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
+          DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
         run: python3 scripts/ci/dokploy_deploy.py --check
       - id: repo
         run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
@@ -141,12 +143,12 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - name: Deploy published images and verify landing revision
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
-          DOKPLOY_PROJECT_ID: ${{ vars.DOKPLOY_PROJECT_ID }}
-          DOKPLOY_WEB_APP_ID: ${{ vars.DOKPLOY_WEB_APP_ID }}
-          DOKPLOY_INGEST_APP_ID: ${{ vars.DOKPLOY_INGEST_APP_ID }}
-          BRB_WEB_URL: ${{ vars.BRB_WEB_URL }}
+          DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
+          DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
+          DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
+          BRB_WEB_URL: ${{ secrets.BRB_WEB_URL }}
           DEPLOY_WEB: ${{ needs.detect.outputs.web }}
           DEPLOY_INGEST: ${{ needs.detect.outputs.ingest }}
         run: |
