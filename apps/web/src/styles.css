@@ -664,59 +664,55 @@
   }
 }
 
-@keyframes sword-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
+/* Stepped edges and a tiled ground keep the footer in the pixel-art world. */
+.pixel-footer {
+  background: var(--glass);
+  border: 2px solid var(--moss);
+  box-shadow: 6px 6px 0 var(--glass-shade);
+  clip-path: polygon(
+    8px 0,
+    calc(100% - 8px) 0,
+    calc(100% - 8px) 8px,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    8px calc(100% - 8px),
+    0 calc(100% - 8px),
+    0 8px,
+    8px 8px
+  );
 }
-@keyframes sword-shadow {
-  0%,
-  100% {
-    transform: scaleX(1);
-    opacity: 0.9;
-  }
-  50% {
-    transform: scaleX(0.7);
-    opacity: 0.5;
-  }
+.pixel-footer-checks {
+  opacity: 0.3;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--moss) 0 8px,
+    transparent 8px 16px
+  );
 }
-@keyframes sword-glint {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  60% {
-    transform: translateY(12px);
-    opacity: 0.8;
-  }
-  61%,
-  100% {
-    opacity: 0;
-    transform: translateY(12px);
-  }
+.pixel-footer-ground {
+  background:
+    repeating-linear-gradient(90deg, var(--moss) 0 8px, transparent 8px 16px)
+      top / 100% 8px no-repeat,
+    linear-gradient(var(--moss), var(--moss)) bottom / 100% 8px no-repeat;
+  opacity: 0.5;
 }
-.sword-float > svg {
-  animation: sword-float 3s steps(12) infinite;
+.pixel-footer-cta {
+  border: 2px solid var(--bark);
+  box-shadow: 4px 4px 0 var(--bark);
 }
-.sword-shadow {
-  animation: sword-shadow 3s steps(12) infinite;
+.pixel-footer-cta:hover,
+.pixel-footer-cta:focus-visible {
+  background: var(--honey-top);
 }
-.sword-glint {
-  animation: sword-glint 2.4s steps(12) infinite;
+.pixel-footer-cta:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--bark);
 }
-@media (prefers-reduced-motion: reduce) {
-  .sword-float > svg,
-  .sword-shadow,
-  .sword-glint {
-    animation: none;
-  }
+.pixel-footer-link:hover > span {
+  color: var(--honey);
 }
 
 /* Pixel walkers hopping the pipeline. The motion path owns the jump arc; the

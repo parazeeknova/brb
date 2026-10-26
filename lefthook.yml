@@ -10,9 +10,7 @@ pre-commit:
     oxfmt:
       run: bunx oxfmt --check
     ty:
-      run: uv run ty check packages/ingest/src packages/ingest/scripts packages/autofill packages/ml
-    tsc:
-      run: bun --cwd packages/node typecheck
+      run: uv run ty check apps/ingest/src apps/ingest/scripts
     tsc-web:
       run: bun --cwd apps/web typecheck
     version-bump:

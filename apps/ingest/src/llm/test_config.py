@@ -1,0 +1,39 @@
+"""Tests for LLM configuration defaults and embedding query builder."""
+
+from __future__ import annotations
+
+from src.llm.config import (
+    EMBED_QUERY_INSTRUCTION,
+    EmbedConfig,
+    LLMConfig,
+    build_embed_query,
+)
+
+
+class TestBuildEmbedQuery:
+    def test_prepends_instruction_prefix(self) -> None:
+        result = build_embed_query("test query")
+        assert result.startswith(EMBED_QUERY_INSTRUCTION)
+        assert result.endswith("test query")
+
+    def test_prefix_includes_instruct_keyword(self) -> None:
+        result = build_embed_query("some job")
+        assert "Instruct:" in result
+        assert "Query:" in result
+
+
+class TestLLMConfig:
+    def test_default_values(self) -> None:
+        cfg = LLMConfig()
+        assert isinstance(cfg.model, str) and len(cfg.model) > 0
+        assert cfg.context_length == 32768
+
+
+class TestEmbedConfig:
+    def test_default_values(self, monkeypatch) -> None:
+        for var in ("EMBED_URL", "EMBED_MODEL"):
+            monkeypatch.delenv(var, raising=False)
+        cfg = EmbedConfig()
+        assert cfg.base_url == ""
+        assert cfg.model == "gemini-embedding-2"
+        assert cfg.context_length == 32768

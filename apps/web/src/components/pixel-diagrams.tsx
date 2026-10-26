@@ -66,7 +66,7 @@ export function PixelLoop() {
       shapeRendering="crispEdges"
       className="w-full"
       role="img"
-      aria-label="HO decision loop: discover, normalize, understand, rank, personalize, apply, observe, learn, then back to rank"
+      aria-label="BRB decision loop: discover, normalize, understand, rank, personalize, apply, observe, learn, then back to rank"
     >
       {dots.map(([x, y]) => (
         <rect
@@ -120,7 +120,7 @@ export function PixelLoop() {
         style={T}
         className="fill-background"
       >
-        HO
+        BRB
       </text>
       {pts.map(([x, y], i) => {
         const left = x < cx - 4;

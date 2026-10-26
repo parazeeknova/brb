@@ -20,9 +20,6 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.0
       - run: uvx ruff check .
       - run: uvx ruff format --check .
-      # Pin 3.14: the repo requires it, and uvx otherwise provisions whatever
-      # is handy (3.12 broke on 3.14-only `except A, B:` syntax).
-      - run: uvx --python 3.14 pytest scripts/ -q
       - uses: oven-sh/setup-bun@v2.2.0
       - uses: actions/cache@v6.1.0
         with:
@@ -32,7 +29,9 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bunx oxfmt --check
       - run: uv sync --frozen
-      - run: uv run ty check packages/ingest/src packages/ingest/scripts packages/autofill packages/ml
+      # Use the locked dev dependencies: the dev-runner tests import Typer.
+      - run: uv run python -m pytest scripts/ -q
+      - run: uv run ty check apps/ingest/src apps/ingest/scripts
       # Workspace tasks, cached per package and scoped to PR changes.
       # Root manifests (ruff/ty/pytest above) are intentionally unscoped.
       - run: bunx lerna run lint --since origin/main

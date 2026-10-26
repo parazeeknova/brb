@@ -36,6 +36,6 @@
     if [ -n "$VIRTUAL_ENV" ] && [ "$VIRTUAL_ENV" != "$UV_PROJECT_ENVIRONMENT" ]; then
       unset VIRTUAL_ENV
     fi
-    echo "ho dev env — python $(python --version) | node $(node --version) | uv ready"
+    echo "brb dev env — python $(python --version) | node $(node --version) | uv ready"
   '';
 }
