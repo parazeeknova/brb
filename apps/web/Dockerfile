@@ -8,6 +8,8 @@ COPY apps/web/package.json apps/web/
 RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY apps/web ./apps/web
+ARG VITE_RELEASE_SHA=development
+ENV VITE_RELEASE_SHA=${VITE_RELEASE_SHA}
 RUN bun run --filter 'brb-web' build
 
 FROM node:25-alpine AS runner

@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
-import { JOBS } from "@/lib/jobs-data";
+import { HERO_JOBS as JOBS } from "@/lib/hero-jobs";
 import type { Job } from "@/lib/jobs-data";
 import {
   createBlockWipeGrid,

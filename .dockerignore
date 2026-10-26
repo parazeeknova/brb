@@ -19,3 +19,10 @@ __pycache__
 **/__pycache__
 .pytest_cache
 .ruff_cache
+
+# Keep local credentials out of every image build context.
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example

@@ -66,10 +66,36 @@ class StreamBus:
             except Exception as exc:
                 if "BUSYGROUP" not in str(exc):
                     raise
+            await self.compact_completed(stream)
+
+    async def compact_completed(self, stream: str) -> None:
+        """Remove old acknowledged history below every group's safe cursor."""
+        if stream in (STREAM_GATED, STREAM_DLQ):
+            return
+        groups = await self.redis.xinfo_groups(stream)
+        floors = []
+        for group in groups:
+            pending = await self.redis.xpending(stream, group["name"])
+            floor = pending.get("min")
+            if not floor:
+                ms, seq = group["last-delivered-id"].split("-")
+                floor = f"{ms}-{int(seq) + 1}"
+            floors.append(tuple(map(int, floor.split("-"))))
+        if floors:
+            ms, seq = min(floors)
+            await self.redis.xtrim(stream, minid=f"{ms}-{seq}", approximate=False)
 
     async def publish(self, stream: str, fields: dict[str, str]) -> str:
-        """Append one message, trimming the stream to maxlen (backpressure)."""
-        entry_id = await self.redis.xadd(stream, fields, maxlen=self.maxlen, approximate=True)
+        """Append work without trimming unfinished messages.
+
+        Only gated notifications (whose records already live in Postgres) have
+        bounded history. Discovery pauses at the configured backlog threshold;
+        completed work is removed by ack instead of evicting queued work.
+        """
+        if stream == STREAM_GATED:
+            entry_id = await self.redis.xadd(stream, fields, maxlen=self.maxlen, approximate=True)
+        else:
+            entry_id = await self.redis.xadd(stream, fields)
         return entry_id.decode() if isinstance(entry_id, bytes) else str(entry_id)
 
     async def read(
@@ -90,6 +116,9 @@ class StreamBus:
         """Acknowledge processed messages."""
         if entry_ids:
             await self.redis.xack(stream, group_for(stream), *entry_ids)
+            # Each work stream has one consumer group. Delete only completed
+            # messages, never pending or not-yet-delivered work.
+            await self.redis.xdel(stream, *entry_ids)
 
     async def depth(self, stream: str) -> int:
         """Pending (undelivered + unacked) message count."""
@@ -111,47 +140,64 @@ class StreamBus:
         reclaimed = 0
         for stream in (STREAM_DISCOVER, STREAM_RAW, STREAM_GATED, STREAM_EMBED, STREAM_ENRICH):
             reclaimed += await self.reap_stream(stream)
+            # Reclaiming the oldest pending entry can expose acknowledged
+            # history from older builds. Remove it before measuring backlog.
+            await self.compact_completed(stream)
         return reclaimed
 
+    async def _requeue(self, stream: str, entry_id: str, fields: dict, deliveries: int) -> None:
+        payload = {str(k): str(v) for k, v in fields.items()}
+        if deliveries >= self.max_deliveries:
+            await self.publish(
+                STREAM_DLQ,
+                {
+                    **payload,
+                    "origin_stream": stream,
+                    "origin_id": entry_id,
+                    "error": f"delivered {deliveries}x without ack",
+                },
+            )
+        else:
+            payload["_brb_deliveries"] = str(deliveries)
+            await self.publish(stream, payload)
+        # Publish first: interruption here can duplicate work, but cannot erase
+        # it. Handlers use idempotent database writes for at-least-once delivery.
+        await self.ack(stream, entry_id)
+
     async def reap_stream(self, stream: str) -> int:
-        """Reap one stream's stale pending entries (see reap_stale)."""
+        """Requeue stale pending work for normal > readers, or retain it in DLQ."""
         reclaimed = 0
         group = group_for(stream)
-        try:
-            pending = await self.redis.xpending_range(stream, group, "-", "+", 100)
-        except Exception:
-            return 0
+        pending = await self.redis.xpending_range(stream, group, "-", "+", 100)
         for entry in pending:
-            if isinstance(entry, dict):
-                entry_id = entry.get("message_id", "")
-                deliveries = int(entry.get("times_delivered", 0))
-            else:  # redis-py <4 tuple form: (id, consumer, idle, deliveries)
-                entry_id, _, _, deliveries = entry
-                deliveries = int(deliveries)
-            if isinstance(entry_id, bytes):
-                entry_id = entry_id.decode()
-            try:
-                if deliveries >= self.max_deliveries:
-                    claimed = await self.redis.xautoclaim(
-                        stream, group, self._consumer, self.claim_idle_ms, entry_id, count=1
-                    )
-                    _next, messages = claimed[0], claimed[1]
-                    fields = dict(messages[0][1]) if messages else {}
-                    await self.publish(
-                        STREAM_DLQ,
-                        {
-                            "origin_stream": stream,
-                            "origin_id": str(entry_id),
-                            "error": f"delivered {deliveries}x without ack",
-                            **{str(k): str(v) for k, v in fields.items()},
-                        },
-                    )
-                    await self.redis.xack(stream, group, entry_id)
-                else:
-                    await self.redis.xautoclaim(
-                        stream, group, self._consumer, self.claim_idle_ms, entry_id, count=1
-                    )
-                reclaimed += 1
-            except Exception:
+            entry_id = str(entry["message_id"])
+            claimed = await self.redis.xclaim(
+                stream, group, self._consumer, self.claim_idle_ms, [entry_id]
+            )
+            if not claimed:
                 continue
+            _, fields = claimed[0]
+            deliveries = int(entry["times_delivered"]) + int(fields.get("_brb_deliveries", "0"))
+            await self._requeue(stream, entry_id, fields, deliveries)
+            reclaimed += 1
         return reclaimed
+
+    async def release_consumer(self, stream: str, consumer: str) -> int:
+        """Hand off one stopped consumer's unacknowledged messages immediately."""
+        released = 0
+        group = group_for(stream)
+        while pending := await self.redis.xpending_range(
+            stream, group, "-", "+", 100, consumername=consumer
+        ):
+            for entry in pending:
+                entry_id = str(entry["message_id"])
+                claimed = await self.redis.xclaim(stream, group, self._consumer, 0, [entry_id])
+                if claimed:
+                    _, fields = claimed[0]
+                    # Deployments are not processing failures, so do not spend
+                    # a retry just because an active handler was interrupted.
+                    await self._requeue(
+                        stream, entry_id, fields, int(fields.get("_brb_deliveries", "0"))
+                    )
+                    released += 1
+        return released

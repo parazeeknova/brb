@@ -9,6 +9,7 @@ in BLOCK reads, producers park on interval guards (+1s idle tick).
 from __future__ import annotations
 
 import asyncio
+import os
 import signal
 import sys
 import threading
@@ -42,6 +43,9 @@ class Pipeline:
         self.stop = asyncio.Event()
         self.ctx: PipelineCtx | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._consumer_tasks: set[asyncio.Task] = set()
+        self._consumers: set[tuple[str, str]] = set()
+        self._shutdown_started = False
         self._redis: Any = None
         self._consumer_seq = 0
         self._dork_engine: Any = None
@@ -90,9 +94,10 @@ class Pipeline:
         await dedup.initialize()
 
         try:
-            from src.radar.sources.sources import load_checkpoints
+            from src.radar.sources.sources import get_all_checkpoints, load_checkpoints
 
             await load_checkpoints(store)
+            logger.info(f"Restored {len(get_all_checkpoints())} source checkpoints")
         except Exception:
             pass
 
@@ -150,35 +155,80 @@ class Pipeline:
             f"Pipeline up: fetch x{n_fetch}, normalize x{n_norm}, "
             f"embed x{n_embed}, enrich x{n_enrich}, producers on"
         )
-        self.ready = True
+        self.ready = not self.stop.is_set()
 
-    async def run_forever(self) -> None:
+    def request_stop(self) -> None:
+        self.ready = False
+        self.stop.set()
+
+    def install_signal_handlers(self) -> None:
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
-                loop.add_signal_handler(sig, self.stop.set)
+                loop.add_signal_handler(sig, self.request_stop)
             except NotImplementedError, RuntimeError:
-                signal.signal(sig, lambda *_: self.stop.set())
+                signal.signal(sig, lambda *_: self.request_stop())
+
+    async def run_forever(self) -> None:
+        self.install_signal_handlers()
         await self.stop.wait()
         await self.shutdown()
 
     async def shutdown(self) -> None:
-        self.stop.set()
+        if self._shutdown_started:
+            return
+        self._shutdown_started = True
+        self.request_stop()
+        logger.info("Shutdown requested: stopping discovery and draining active handlers")
+        # Discovery stops immediately. Consumers finish the current handler and
+        # acknowledge it, then stop before taking another message from the batch.
+        draining = {task for task in self._tasks if task in self._consumer_tasks}
         for task in self._tasks:
-            task.cancel()
+            if task not in draining:
+                task.cancel()
+        if draining:
+            _, pending = await asyncio.wait(
+                draining, timeout=float(os.environ.get("SHUTDOWN_DRAIN_SECONDS", "40"))
+            )
+            for task in pending:
+                task.cancel()
         for task in self._tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks.clear()
+        self._consumer_tasks.clear()
         ctx = self.ctx
         if ctx is not None:
-            with contextlib.suppress(Exception):
-                await ctx.dedup.close()
-            with contextlib.suppress(Exception):
-                await ctx.store.close()
-            if ctx.graph is not None:
-                with contextlib.suppress(Exception):
-                    await ctx.graph.close()
+            # Save source cursors while Postgres is still open, then requeue
+            # unfinished owned messages so the replacement sees them immediately.
+            try:
+                async with asyncio.timeout(20):
+                    from src.radar.sources.sources import persist_checkpoints
+
+                    try:
+                        await persist_checkpoints(ctx.store)
+                        logger.info("Shutdown source checkpoint flush completed")
+                    except Exception as exc:
+                        logger.warning(f"Final checkpoint persistence failed: {exc}")
+                    for stream, consumer in self._consumers:
+                        released = await ctx.bus.release_consumer(stream, consumer)
+                        if released:
+                            logger.info(f"Handed off {released} unfinished messages from {stream}")
+            except Exception as exc:
+                # A crash or unavailable Redis still leaves the original entry
+                # pending; the stale-message reaper recovers it after restart.
+                logger.warning(f"Shutdown handoff incomplete; pending work retained: {exc}")
+            try:
+                async with asyncio.timeout(10):
+                    with contextlib.suppress(Exception):
+                        await ctx.dedup.close()
+                    with contextlib.suppress(Exception):
+                        await ctx.store.close()
+                    if ctx.graph is not None:
+                        with contextlib.suppress(Exception):
+                            await ctx.graph.close()
+            except TimeoutError:
+                logger.warning("Shutdown connection cleanup timed out")
         if self._redis is not None:
             with contextlib.suppress(Exception):
                 await self._redis.aclose()
@@ -188,6 +238,7 @@ class Pipeline:
             await _close_http_clients()
         except Exception:
             pass
+        logger.info("Shutdown complete; durable state and queued work preserved")
 
     # -- backfills -----------------------------------------------------
 
@@ -232,6 +283,10 @@ class Pipeline:
         from src.radar.sources.tinyfish_search import tinyfish_search_tick
 
         while not self.stop.is_set():
+            if await self.ctx.bus.depth(STREAM_DISCOVER) >= get_config().pipeline.stream_maxlen:
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(self.stop.wait(), timeout=1.0)
+                continue
             try:
                 # Concurrent ticks: a slow board batch must never stall the
                 # fast producers (dorks, TinyFish, high-volume). Interval
@@ -268,6 +323,10 @@ class Pipeline:
     async def _consume(self, stream: str, handler: Handler, count: int) -> None:
         assert self.ctx is not None
         consumer = self._next_consumer(stream)
+        self._consumers.add((stream, consumer))
+        task = asyncio.current_task()
+        if task is not None:
+            self._consumer_tasks.add(task)
         bus = self.ctx.bus
         while not self.stop.is_set():
             try:
@@ -337,9 +396,24 @@ class Pipeline:
 
 async def amain() -> int:
     pipeline = Pipeline()
+    pipeline.install_signal_handlers()
     _start_health_server(pipeline)
-    await pipeline.start()
-    await pipeline.run_forever()
+    startup = asyncio.create_task(pipeline.start(), name="startup")
+    stopped = asyncio.create_task(pipeline.stop.wait(), name="startup-stop")
+    try:
+        done, _ = await asyncio.wait({startup, stopped}, return_when=asyncio.FIRST_COMPLETED)
+        if stopped in done and not startup.done():
+            startup.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await startup
+        else:
+            await startup
+            await pipeline.run_forever()
+    finally:
+        stopped.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await stopped
+        await pipeline.shutdown()
     return 0
 
 

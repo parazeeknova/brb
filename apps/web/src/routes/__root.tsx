@@ -83,11 +83,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           href: appCss,
           rel: "stylesheet",
         },
-        { href: "/brb-logo.webp", rel: "icon", type: "image/webp" },
+        { href: "/favicon.svg", rel: "icon", type: "image/svg+xml" },
         { href: "/brb-logo.webp", rel: "apple-touch-icon" },
       ],
       meta: [
         { charSet: "utf-8" },
+        {
+          content: import.meta.env["VITE_RELEASE_SHA"] ?? "development",
+          name: "brb:revision",
+        },
         { content: "width=device-width, initial-scale=1", name: "viewport" },
         { title: "BRB" },
         { content: "A cozy job matching companion.", name: "description" },

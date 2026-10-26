@@ -9,11 +9,13 @@ import {
   PinIcon,
   SparkleIcon,
 } from "@/components/pixel-icons";
+import { SEARCH_PLAN } from "@/lib/pricing";
 
 export const Route = createFileRoute("/profile")({
   component: Profile,
   head: () => ({
     meta: [
+      { content: "noindex,follow", name: "robots" },
       { title: "BRB · Your profile" },
       {
         content:
@@ -41,9 +43,9 @@ const USER = {
 };
 
 const USAGE = [
-  { l: "Personalized applications", max: 1000, used: 412 },
-  { l: "Fit job postings", max: 3000, used: 1870 },
-  { l: "Live review minutes", max: 300, used: 96 },
+  { l: "Application packs", max: SEARCH_PLAN.documentPacks, used: 24 },
+  { l: "AI chat messages", max: SEARCH_PLAN.chatMessages, used: 110 },
+  { l: "Autofill credits", max: SEARCH_PLAN.autofillCredits, used: 12 },
 ];
 
 const WEEK = [
@@ -296,24 +298,32 @@ function Profile() {
           <div className="pixel-frame is-pop">
             <div className="pixel-inner flex h-full flex-col p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl">Pro plan</h2>
+                <h2 className="text-xl">{SEARCH_PLAN.name} plan</h2>
                 <span className="gem gem-fit font-pixel px-3 py-1 text-[11px]">
-                  Active
+                  Preview
                 </span>
               </div>
               <p className="mt-3">
-                <span className="font-pixel text-3xl">$22</span>
+                <span className="font-pixel text-3xl">
+                  ${SEARCH_PLAN.priceUsd}
+                </span>
                 <span className="text-muted-foreground">
                   {" "}
-                  a month · renews Nov 6
+                  a month at launch
                 </span>
               </p>
               <div className="mt-auto flex gap-2 pt-6">
-                <button className="btn-honey h-10 flex-1 rounded-[0.9rem] text-sm font-bold">
-                  Upgrade to Max
-                </button>
-                <button className="engraved h-10 flex-1 rounded-[0.9rem] text-sm font-bold">
-                  Manage billing
+                <a
+                  href="/#pricing"
+                  className="btn-honey flex h-10 flex-1 items-center justify-center rounded-[0.9rem] text-sm font-bold"
+                >
+                  View launch plans
+                </a>
+                <button
+                  disabled
+                  className="engraved h-10 flex-1 cursor-not-allowed rounded-[0.9rem] text-sm font-bold opacity-60"
+                >
+                  Billing coming soon
                 </button>
               </div>
             </div>
@@ -321,7 +331,7 @@ function Profile() {
         </div>
 
         {/* Usage */}
-        <Card title="This month's usage">
+        <Card title="Example monthly usage">
           <div className="grid gap-6 md:grid-cols-3">
             {USAGE.map((u) => (
               <div key={u.l}>

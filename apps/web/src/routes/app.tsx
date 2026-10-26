@@ -10,6 +10,7 @@ export const Route = createFileRoute("/app")({
   component: Index,
   head: () => ({
     meta: [
+      { content: "noindex,follow", name: "robots" },
       { title: "BRB · Assistant" },
       {
         content:

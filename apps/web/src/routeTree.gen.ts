@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SourcesSourceRouteImport } from './routes/sources.$source'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SourcesSourceRoute = SourcesSourceRouteImport.update({
+  id: '/sources/$source',
+  path: '/sources/$source',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/profile': typeof ProfileRoute
+  '/sources/$source': typeof SourcesSourceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/profile': typeof ProfileRoute
+  '/sources/$source': typeof SourcesSourceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/profile': typeof ProfileRoute
+  '/sources/$source': typeof SourcesSourceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/profile'
+  fullPaths: '/' | '/app' | '/profile' | '/sources/$source'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/profile'
-  id: '__root__' | '/' | '/app' | '/profile'
+  to: '/' | '/app' | '/profile' | '/sources/$source'
+  id: '__root__' | '/' | '/app' | '/profile' | '/sources/$source'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
   ProfileRoute: typeof ProfileRoute
+  SourcesSourceRoute: typeof SourcesSourceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sources/$source': {
+      id: '/sources/$source'
+      path: '/sources/$source'
+      fullPath: '/sources/$source'
+      preLoaderRoute: typeof SourcesSourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
   ProfileRoute: ProfileRoute,
+  SourcesSourceRoute: SourcesSourceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

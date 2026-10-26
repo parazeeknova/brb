@@ -616,6 +616,17 @@
   flex: none;
   object-fit: contain;
 }
+@media (width < 40rem) {
+  .logo-marquee-image {
+    width: calc(var(--company-logo-width) * 0.68);
+    height: 30px;
+  }
+  .logo-marquee-set {
+    gap: 2rem;
+    height: 2.5rem;
+    padding-inline-end: 2rem;
+  }
+}
 .dark .logo-marquee-image--lighten-in-dark {
   filter: brightness(0) invert(1);
 }
@@ -698,18 +709,6 @@
       top / 100% 8px no-repeat,
     linear-gradient(var(--moss), var(--moss)) bottom / 100% 8px no-repeat;
   opacity: 0.5;
-}
-.pixel-footer-cta {
-  border: 2px solid var(--bark);
-  box-shadow: 4px 4px 0 var(--bark);
-}
-.pixel-footer-cta:hover,
-.pixel-footer-cta:focus-visible {
-  background: var(--honey-top);
-}
-.pixel-footer-cta:active {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--bark);
 }
 .pixel-footer-link:hover > span {
   color: var(--honey);

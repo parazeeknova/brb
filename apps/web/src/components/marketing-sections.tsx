@@ -1,27 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { JOBS } from "@/lib/jobs-data";
+import {
+  AUTOFILL_MINUTES_PER_CREDIT,
+  AUTOFILL_TOP_UP,
+  BILLING_PROVIDER,
+  PRICING_PLANS,
+} from "@/lib/pricing";
+import { SOURCE_PAGES } from "@/lib/source-pages";
 
 import { JobCard } from "./jobs-tab";
 import { LearningCurve } from "./pixel-diagrams";
 import {
   ArrowIcon,
   LeafIcon,
-  PixelLogo,
   SearchIcon,
   SendIcon,
   SparkleIcon,
 } from "./pixel-icons";
-
-const SOURCES = [
-  { h: 240, n: "LinkedIn" },
-  { h: 45, n: "Y Combinator" },
-  { h: 30, n: "Workday" },
-  { h: 150, n: "Greenhouse" },
-  { h: 200, n: "Lever" },
-  { h: 280, n: "Ashby" },
-];
 
 const STEPS = [
   {
@@ -37,8 +33,8 @@ const STEPS = [
     t: "You get a short list",
   },
   {
-    d: "Grounded in your actual work, verified, then sent. You review live if you like.",
-    t: "Applications go out",
+    d: "A tailored resume and cover letter, then autofill for the repetitive fields. You check the details and submit.",
+    t: "You review and apply",
   },
   {
     d: "Replies, rejections and silence all feed back, so next week's picks are sharper.",
@@ -46,41 +42,7 @@ const STEPS = [
   },
 ];
 
-const PLANS = [
-  {
-    items: [
-      "400 personalized applications a month",
-      "1,500 average fit job postings a month",
-    ],
-    m: 12,
-    name: "Starter",
-    y: 8,
-  },
-  {
-    items: [
-      "1,000 personalized applications a month",
-      "3,000 average fit job postings a month",
-      "300 minutes of live review a month",
-    ],
-    m: 22,
-    name: "Pro",
-    pop: true,
-    y: 16,
-  },
-  {
-    items: [
-      "3,000 applications a month",
-      "6,000 job postings a month",
-      "600 minutes of live review a month",
-    ],
-    m: 99,
-    name: "Max",
-    y: 99,
-  },
-];
-
 export function MarketingSections() {
-  const [yearly, setYearly] = useState(false);
   return (
     <>
       {/* Sources */}
@@ -89,19 +51,32 @@ export function MarketingSections() {
           <p className="text-muted-foreground text-center text-sm">
             Jobs from company career sites and job boards, including
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {SOURCES.map((s) => (
-              <span
-                key={s.n}
-                className="engraved flex items-center gap-2.5 rounded-full py-1.5 pr-4 pl-1.5"
+          <div className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
+            {SOURCE_PAGES.map((s) => (
+              <Link
+                key={s.slug}
+                to="/sources/$source"
+                params={{ source: s.slug }}
+                className="engraved flex min-h-12 min-w-0 items-center gap-2 rounded-full py-1.5 pr-2 pl-1.5 hover:underline sm:gap-2.5 sm:pr-4"
               >
-                <span className="[&>svg]:size-8">
-                  <PixelLogo name={s.n} hue={s.h} />
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white p-1.5 sm:size-9">
+                  <img
+                    src={s.logo}
+                    alt=""
+                    width={28}
+                    height={28}
+                    loading="lazy"
+                    className="max-h-5 w-5 object-contain sm:max-h-7 sm:w-7"
+                  />
                 </span>
-                <span className="font-pixel text-sm">{s.n}</span>
-              </span>
+                <span className="font-pixel min-w-0 text-xs sm:text-sm">
+                  {s.name}
+                </span>
+              </Link>
             ))}
-            <span className="font-pixel text-moss text-sm">+50 more</span>
+            <span className="font-pixel text-moss col-span-2 mt-2 text-center text-xs sm:mt-0 sm:text-sm">
+              + employer career pages
+            </span>
           </div>
         </div>
       </section>
@@ -118,84 +93,116 @@ export function MarketingSections() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="mx-auto max-w-6xl pb-20">
-        <div className="text-center">
-          <h2 className="text-2xl sm:text-4xl">Plans and pricing</h2>
-          <p className="text-muted-foreground mt-3">
-            Start with a 3-day free trial on any plan. Change or cancel anytime.
+      <section
+        id="pricing"
+        className="mx-auto max-w-6xl pb-20"
+        aria-labelledby="pricing-title"
+      >
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="font-pixel text-moss text-sm">
+            ROOM FOR YOUR NEXT CHAPTER
           </p>
-          <div className="engraved mx-auto mt-6 inline-flex rounded-full p-1">
-            {[false, true].map((y) => (
-              <button
-                key={String(y)}
-                onClick={() => setYearly(y)}
-                className={`rounded-full px-5 py-2 text-sm font-bold transition-colors ${yearly === y ? "btn-honey" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {y ? "Yearly" : "Monthly"}
-              </button>
-            ))}
-          </div>
+          <h2 id="pricing-title" className="mt-3 text-3xl sm:text-4xl">
+            Start small. Step up when you need to.
+          </h2>
+          <p className="text-muted-foreground mt-4 leading-relaxed">
+            A free starting point, a student-friendly plan, and more room for an
+            active search. Monthly pricing. No annual commitment.
+          </p>
+          <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+            Proposed launch plans, in USD. Personalized matching, tailoring,
+            autofill and {BILLING_PROVIDER} checkout are coming. The current
+            preview does not charge you.
+          </p>
         </div>
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {PLANS.map((p) => (
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {PRICING_PLANS.map((plan) => (
             <div
-              key={p.name}
-              className={`pixel-frame flex ${p.pop ? "is-pop" : ""}`}
+              key={plan.id}
+              className={`pixel-frame flex ${plan.recommended ? "is-pop" : ""}`}
             >
-              <div className="pixel-inner relative flex w-full flex-col overflow-hidden p-6">
-                {[0, 1, 2].map((k) => (
-                  <LeafIcon
-                    key={k}
-                    size={10 + k * 2}
-                    className={`leaf-sway pointer-events-none absolute top-0 ${p.pop ? "text-honey" : "text-moss"}`}
-                    style={{
-                      animationDelay: `${k * 2}s`,
-                      right: `${12 + k * 22}%`,
-                    }}
-                  />
-                ))}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl">{p.name}</h3>
-                  {p.pop && (
-                    <span className="gem gem-fit font-pixel px-3 py-1 text-[11px]">
-                      Most popular
+              <div className="pixel-inner relative flex w-full flex-col p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xl">{plan.name}</h3>
+                  {plan.recommended && (
+                    <span className="gem gem-fit font-pixel px-2 py-1 text-[10px]">
+                      Active search
                     </span>
                   )}
                 </div>
+                <p className="text-muted-foreground mt-3 min-h-10 text-sm leading-relaxed">
+                  {plan.description}
+                </p>
                 <p className="mt-5">
-                  <span className="font-pixel text-4xl">
-                    ${yearly ? p.y : p.m}
+                  <span className="font-pixel text-4xl">${plan.priceUsd}</span>
+                  <span className="text-muted-foreground text-sm">
+                    {" "}
+                    / month
                   </span>
-                  <span className="text-muted-foreground"> a month</span>
                 </p>
                 <ul className="mt-6 flex flex-1 flex-col gap-3 text-sm">
-                  {p.items.map((it) => (
-                    <li key={it} className="flex gap-2.5">
+                  {[
+                    "Your reusable career profile",
+                    plan.matchFrequency,
+                    `${plan.chatMessages} AI chat messages / month`,
+                    `${plan.documentPacks} tailored application packs / month`,
+                    plan.autofillCredits
+                      ? `${plan.autofillCredits} autofill credits / month`
+                      : "Apply manually on employer sites",
+                  ].map((item) => (
+                    <li key={item} className="flex gap-2">
                       <SparkleIcon
                         size={12}
                         className="text-moss mt-1 shrink-0"
                       />
-                      {it}
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
+                <p className="text-muted-foreground mt-4 text-xs">
+                  {plan.autofillCredits
+                    ? `Up to ${plan.autofillCredits * AUTOFILL_MINUTES_PER_CREDIT} minutes of active autofill.`
+                    : "No browser automation included."}
+                </p>
                 <Link
                   to="/app"
-                  className={`group mt-7 flex h-11 items-center justify-center gap-2 rounded-[0.9rem] font-bold ${p.pop ? "btn-honey" : "engraved"}`}
+                  className={`group mt-6 flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] text-sm font-bold ${plan.recommended ? "btn-honey" : "engraved"}`}
                 >
-                  Start free trial
-                  <ArrowIcon
-                    size={12}
-                    className="transition-transform duration-200 group-hover:translate-x-1"
-                  />
+                  Explore the preview <ArrowIcon size={12} />
                 </Link>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-muted-foreground mt-6 text-center text-sm">
-          Your plan starts with a 3-day free trial. During the trial you get 10
-          applications and 50 job postings. Cancel anytime.
+        <div className="glass mt-6 grid gap-6 rounded-3xl p-6 text-sm sm:grid-cols-3 sm:p-8">
+          <div>
+            <h3 className="font-pixel text-sm">One pack, one role.</h3>
+            <p className="text-muted-foreground mt-3 leading-relaxed">
+              A tailored resume and cover letter for one job, grounded in your
+              profile. Use them even when you apply manually.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-pixel text-sm">Autofill you control.</h3>
+            <p className="text-muted-foreground mt-3 leading-relaxed">
+              One credit covers up to {AUTOFILL_MINUTES_PER_CREDIT} active
+              browser minutes. Longer forms ask before using another credit. You
+              review and submit.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-pixel text-sm">A little extra, if needed.</h3>
+            <p className="text-muted-foreground mt-3 leading-relaxed">
+              Planned top-up: {AUTOFILL_TOP_UP.credits} autofill credits for $
+              {AUTOFILL_TOP_UP.priceUsd}. No automatic top-ups. Monthly
+              allowances reset each billing cycle.
+            </p>
+          </div>
+        </div>
+        <p className="text-muted-foreground mx-auto mt-5 max-w-3xl text-center text-xs leading-relaxed">
+          No interview or offer guarantees. An autofill credit covers browser
+          work, not a guaranteed completed application. Applicable taxes will be
+          shown before payment when billing launches.
         </p>
       </section>
     </>
@@ -309,11 +316,13 @@ function StepDemo({ i }: { i: number }) {
     return (
       <div className="space-y-3">
         <Bot>
-          Draft for Fernwood Labs is ready. I cited your log processor and the
-          40% latency cut.
+          Your application draft is ready. The examples come from the projects
+          and experience in your profile.
         </Bot>
-        <Me>Looks good, send it.</Me>
-        <Bot>Verified and sent. I'll tell you when they reply.</Bot>
+        <Me>Let me review the answers first.</Me>
+        <Bot>
+          Of course. Check the answers and documents, then submit when ready.
+        </Bot>
       </div>
     );
   }

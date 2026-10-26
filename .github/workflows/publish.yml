@@ -3,33 +3,50 @@ name: publish
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      rebuild_all:
+        description: Rebuild and deploy both BRB images
+        type: boolean
+        default: true
+
+concurrency:
+  group: brb-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
   packages: write
-  actions: write
+  actions: read
 
 jobs:
-  # No checks re-run here by design: the `ci` workflow already gated the PR,
-  # and branch protection (required checks + require-branches-up-to-date)
-  # guarantees main only receives green, up-to-date code. Rerunning the same
-  # gates on the merge commit would be pure duplication.
+  # PR CI runs the checks; publishing waits for the images, then deploys only
+  # affected apps and verifies their runtime health and public web revision.
   detect:
     name: detect-changed-images
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.diff.outputs.matrix }}
+      web: ${{ steps.diff.outputs.web }}
+      ingest: ${{ steps.diff.outputs.ingest }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - id: diff
+        env:
+          REBUILD_ALL: ${{ inputs.rebuild_all || false }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          before=${{ github.event.before }}
+          # Compare against the last successful publish/deploy, so a replaced
+          # pending concurrency run cannot skip changes from an earlier merge.
+          before=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
           sha=${{ github.sha }}
-          if [[ "$before" == 0000* ]]; then
+          if [[ "$REBUILD_ALL" == true || -z "$before" || "$before" == 0000* ]]; then
             # No history to diff against (fresh branch): build everything once.
             echo 'matrix={"include":[{"image":"brb-web","dockerfile":"apps/web/Dockerfile"},{"image":"brb-ingest","dockerfile":"apps/ingest/Dockerfile"}]}' >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "ingest=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only "$before" "$sha")
@@ -53,6 +70,8 @@ jobs:
           EOF
           }
           web=false; ingest=false
+          if has '^(scripts/ci/|\.github/workflows/publish.yml|\.dockerignore)'; then web=true; ingest=true; fi
+          if has '^packages/db/'; then web=true; fi
           if has '^apps/web/'; then web=true; fi
           if has '^apps/ingest/'; then ingest=true; fi
           # bun.lock carries no project versions (only dep ranges), so any
@@ -65,6 +84,8 @@ jobs:
               ingest=true
             fi
           fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "ingest=$ingest" >> "$GITHUB_OUTPUT"
           entries=""
           if $web; then entries="$entries{\"image\":\"brb-web\",\"dockerfile\":\"apps/web/Dockerfile\"},"; fi
           if $ingest; then entries="$entries{\"image\":\"brb-ingest\",\"dockerfile\":\"apps/ingest/Dockerfile\"},"; fi
@@ -80,6 +101,14 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Verify Dokploy access before building
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
+          DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
+          DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
+        run: python3 scripts/ci/dokploy_deploy.py --check
       - id: repo
         run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4.6.0
@@ -93,6 +122,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
+          build-args: VITE_RELEASE_SHA=${{ github.sha }}
           # Per-image scoped cache: unchanged layers (deps, browsers) restore
           # in seconds; only the layers after changed files rebuild.
           cache-from: type=gha,scope=${{ matrix.image }}
@@ -100,3 +130,29 @@ jobs:
           tags: |
             ghcr.io/${{ steps.repo.outputs.owner }}/${{ matrix.image }}:latest
             ghcr.io/${{ steps.repo.outputs.owner }}/${{ matrix.image }}:sha-${{ github.sha }}
+
+  deploy:
+    name: deploy-production
+    needs: [detect, build]
+    if: >-
+      always() && github.ref == 'refs/heads/main' && needs.detect.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.detect.outputs.web == 'true' || needs.detect.outputs.ingest == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Deploy published images and verify landing revision
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
+          DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
+          DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
+          BRB_WEB_URL: ${{ secrets.BRB_WEB_URL }}
+          DEPLOY_WEB: ${{ needs.detect.outputs.web }}
+          DEPLOY_INGEST: ${{ needs.detect.outputs.ingest }}
+        run: |
+          args=()
+          if [[ "$DEPLOY_WEB" == true ]]; then args+=(--web); fi
+          if [[ "$DEPLOY_INGEST" == true ]]; then args+=(--ingest); fi
+          python3 scripts/ci/dokploy_deploy.py "${args[@]}"

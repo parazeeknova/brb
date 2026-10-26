@@ -97,16 +97,17 @@ async def publish_urls(ctx: Any, urls: list[str], source: str) -> int:
         fresh = clean
     if not fresh:
         return 0
-    with contextlib.suppress(Exception):
-        await ctx.dedup.mark_urls_seen(fresh)
-    published = 0
+    published_urls = []
     for url in fresh:
         try:
             await ctx.bus.publish("ho:s:discover", discover_fields(url, source))
-            published += 1
+            published_urls.append(url)
         except Exception:
             break
-    return published
+    if published_urls:
+        with contextlib.suppress(Exception):
+            await ctx.dedup.mark_urls_seen(published_urls)
+    return len(published_urls)
 
 
 async def high_volume_tick(ctx: Any) -> int:

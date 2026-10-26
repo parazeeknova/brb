@@ -144,3 +144,113 @@ def test_health_server_reports_readiness(monkeypatch) -> None:
             pipe.stop.set()
 
     asyncio.run(go())
+
+
+def test_shutdown_drains_handler_before_checkpoint_and_close(monkeypatch) -> None:
+    async def go() -> None:
+        from unittest.mock import AsyncMock
+
+        import src.radar.sources.sources as sources
+
+        events: list[str] = []
+        entered = asyncio.Event()
+        finish = asyncio.Event()
+        bus = FakeBus([("1-0", {"url_hash": "h1"}), ("2-0", {"url_hash": "h2"})])
+        bus.release_consumer = AsyncMock(side_effect=lambda *_: events.append("released"))
+        pipe = Pipeline()
+        ctx = FakeCtx(bus)
+        ctx.store = type(
+            "Store", (), {"close": AsyncMock(side_effect=lambda: events.append("closed"))}
+        )()
+        ctx.dedup = type("Dedup", (), {"close": AsyncMock()})()
+        ctx.graph = None
+        pipe.ctx = ctx
+        pipe.ready = True
+
+        async def persist(_store) -> None:
+            events.append("checkpoint")
+
+        monkeypatch.setattr(sources, "persist_checkpoints", persist)
+
+        async def handler(_ctx, _fields) -> None:
+            entered.set()
+            await finish.wait()
+            events.append("finished")
+
+        task = asyncio.create_task(pipe._consume("ho:s:raw", handler, 10))
+        pipe._tasks.append(task)
+        await entered.wait()
+        shutdown = asyncio.create_task(pipe.shutdown())
+        await asyncio.sleep(0)
+        assert not pipe.ready
+        assert not shutdown.done()
+        finish.set()
+        await shutdown
+        assert bus.acked == ["1-0"]
+        assert events == ["finished", "checkpoint", "released", "closed"]
+        await pipe.shutdown()  # A second cleanup cannot requeue twice.
+        assert events.count("released") == 1
+
+    asyncio.run(go())
+
+
+def test_shutdown_timeout_leaves_unfinished_message_for_handoff(monkeypatch) -> None:
+    async def go() -> None:
+        from unittest.mock import AsyncMock
+
+        import src.radar.sources.sources as sources
+
+        monkeypatch.setenv("SHUTDOWN_DRAIN_SECONDS", "0")
+        monkeypatch.setattr(sources, "persist_checkpoints", AsyncMock())
+        entered = asyncio.Event()
+        bus = FakeBus([("1-0", {"url_hash": "h1"})])
+        bus.release_consumer = AsyncMock()
+        pipe = Pipeline()
+        ctx = FakeCtx(bus)
+        ctx.store = type("Store", (), {"close": AsyncMock()})()
+        ctx.dedup = type("Dedup", (), {"close": AsyncMock()})()
+        ctx.graph = None
+        pipe.ctx = ctx
+
+        async def handler(_ctx, _fields) -> None:
+            entered.set()
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(pipe._consume("ho:s:raw", handler, 10))
+        pipe._tasks.append(task)
+        await entered.wait()
+        await pipe.shutdown()
+        assert bus.acked == []
+        bus.release_consumer.assert_awaited_once_with("ho:s:raw", "test-consumer:raw:1")
+        assert task.done()
+
+    asyncio.run(go())
+
+
+def test_stop_during_startup_cancels_boot_and_runs_cleanup(monkeypatch) -> None:
+    async def go() -> None:
+        import src.pipeline.run as run
+
+        events: list[str] = []
+
+        class StartingPipeline(Pipeline):
+            def install_signal_handlers(self) -> None:
+                events.append("handlers-installed")
+
+            async def start(self) -> None:
+                assert events == ["handlers-installed"]
+                self.request_stop()  # Simulate SIGTERM while startup is in flight.
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    events.append("startup-cancelled")
+
+            async def shutdown(self) -> None:
+                events.append("closed")
+
+        monkeypatch.setattr(run, "Pipeline", StartingPipeline)
+        monkeypatch.setattr(run, "_start_health_server", lambda _: None)
+        assert await asyncio.wait_for(run.amain(), timeout=1) == 0
+        assert events == ["handlers-installed", "startup-cancelled", "closed"]
+
+    asyncio.run(go())
