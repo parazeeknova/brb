@@ -46,3 +46,11 @@ External provider keys are intentionally empty for now: `GENERALCOMPUTE_API_KEY`
 ## Operations
 
 Use each service's Dokploy controls and logs independently. Deployment history identifies each application release by commit. To roll back web or ingest, select a previously published `sha-...` Docker image in that application and deploy; leave database volumes in place.
+
+## Resuming ingest after deployment
+
+Ingest uses one replica and **stop-first** updates with a **90-second stop grace period**. SIGTERM removes readiness and stops discovery, gives the current handlers up to 40 seconds to finish and acknowledge their work, persists source checkpoints, and requeues unfinished owned messages before closing connections. New instances load checkpoints, reuse the same Postgres/Redis volumes and namespaces, and continue queued work.
+
+Work messages are removed only after successful handling and acknowledgement. Discovery pauses at its backlog threshold instead of evicting queued work. Gated notifications have bounded history because their canonical records already live in Postgres. A crashed process's unacknowledged work is requeued after the stale timeout; graceful deployments hand it off immediately. Retry counts survive requeueing, and repeatedly failing payloads remain in the dead-letter stream for inspection.
+
+Recovery is at least once: an interruption between publishing a handoff and acknowledging the old entry can replay a message. Existing idempotent database writes protect stored records. A restart does not clear the corpus, source checkpoints, deduplication state or Redis queues.

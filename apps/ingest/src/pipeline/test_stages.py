@@ -300,3 +300,22 @@ def test_publish_urls_skips_unfetchable() -> None:
     n = asyncio.run(producers.publish_urls(ctx, ["https://www.linkedin.com/jobs/view/1"], "t"))
     assert n == 0
     assert ctx.bus.published == []
+
+
+def test_discovery_marks_only_successfully_queued_urls_seen() -> None:
+    import asyncio
+
+    from src.pipeline import producers
+
+    class FailingBus(FakeBus):
+        async def publish(self, stream: str, fields: dict[str, str]) -> str:
+            if self.published:
+                raise ConnectionError("Redis unavailable during publishing")
+            return await super().publish(stream, fields)
+
+    ctx = make_ctx(bus=FailingBus())
+    count = asyncio.run(
+        producers.publish_urls(ctx, ["https://a/1", "https://a/2", "https://a/3"], "test")
+    )
+    assert count == 1
+    assert ctx.dedup.marked == ["https://a/1"]
