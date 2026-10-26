@@ -28,49 +28,49 @@
           "JobObservation": {
             "fields": {
               "createdAt": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
                   "kind": "scalar"
                 }
               },
               "directPostingVerified": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
               "firstSeen": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "freshnessLane": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "lastSeen": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "rawJson": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "snippet": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -84,7 +84,7 @@
                 }
               },
               "title": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -105,14 +105,14 @@
                 }
               },
               "verificationMethod": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "verified": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
@@ -183,9 +183,9 @@
                 }
               },
               "embeddedAt": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
                   "kind": "scalar"
                 }
               },
@@ -237,189 +237,189 @@
                 }
               },
               "companyDescription": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "companyNews": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "createdAt": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
                   "kind": "scalar"
                 }
               },
               "directApplyUrl": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "eligibility": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "extra": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "firstSeen": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "founderSocials": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "founders": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "freshnessLane": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "fundingInfo": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "fundingStage": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "isRemote": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
               "jdSummary": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "lastSeen": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "matchPercent": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
               "matchingSkills": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "missingSkills": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "normalizedCompany": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "normalizedLocation": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "normalizedRole": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "osintSignals": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
               "postedDate": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "rejectionDetail": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "rejectionReason": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "roleFamily": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "roleSummary": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -428,33 +428,33 @@
               "salaryAmount": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
                   "kind": "scalar"
                 }
               },
               "salaryCurrency": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "salaryPeriod": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "salaryRaw": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "shortlistProbability": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
@@ -468,28 +468,28 @@
                 }
               },
               "sourceConfidence": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
                   "kind": "scalar"
                 }
               },
               "updatedAt": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
                   "kind": "scalar"
                 }
               },
               "verdict": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "verified": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
@@ -621,49 +621,49 @@
           "SourceCheckpoint": {
             "fields": {
               "active": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
               "backoffUntil": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "boardUrl": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "companyName": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "consecutiveEmpty": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
               "consecutiveFailures": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
               "discoveryOrigin": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -677,21 +677,21 @@
                 }
               },
               "lastPolled": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
               "lastSnapshotCount": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
               "lastSnapshotHash": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -705,9 +705,9 @@
                 }
               },
               "qualityScore": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
                   "kind": "scalar"
                 }
               },
@@ -726,30 +726,30 @@
                 }
               },
               "totalDirectUrlRate": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
                   "kind": "scalar"
                 }
               },
               "totalJobsProduced": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
               "updatedAt": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
                   "kind": "scalar"
                 }
               },
               "yieldPerPoll": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
                   "kind": "scalar"
                 }
               }
@@ -831,113 +831,113 @@
             "job_observations": {
               "columns": {
                 "created_at": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamptz",
-                  "nullable": false
+                  "nullable": true
                 },
                 "direct_posting_verified": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
-                  "nullable": false
+                  "nullable": true
                 },
                 "first_seen": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "freshness_lane": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "review"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "last_seen": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "raw_json": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "{}"
+                    "value": {}
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "snippet": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "source": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "title": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "url": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "url_hash": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "verification_method": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "verified": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
-                  "nullable": false
+                  "nullable": true
                 }
               },
               "foreignKeys": [],
@@ -945,7 +945,8 @@
               "primaryKey": {
                 "columns": [
                   "url_hash"
-                ]
+                ],
+                "name": "job_observations_pkey"
               },
               "uniques": []
             },
@@ -953,43 +954,43 @@
               "columns": {
                 "company": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "content_hash": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "embedded_at": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamptz",
-                  "nullable": false
+                  "nullable": true
                 },
                 "title": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "url_hash": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 }
               },
@@ -998,7 +999,8 @@
               "primaryKey": {
                 "columns": [
                   "url_hash"
-                ]
+                ],
+                "name": "obs_embeddings_pkey"
               },
               "uniques": []
             },
@@ -1006,337 +1008,337 @@
               "columns": {
                 "canonical_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "company_description": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "company_news": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "created_at": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamptz",
-                  "nullable": false
+                  "nullable": true
                 },
                 "direct_apply_url": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "eligibility": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "pending"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "extra": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "{}"
+                    "value": {}
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "first_seen": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "founder_socials": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "[]"
+                    "value": []
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "founders": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "[]"
+                    "value": []
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "freshness_lane": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "review"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "funding_info": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "{}"
+                    "value": {}
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "funding_stage": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "is_remote": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
-                  "nullable": false
+                  "nullable": true
                 },
                 "jd_summary": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "last_seen": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "match_percent": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "matching_skills": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "[]"
+                    "value": []
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "missing_skills": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "[]"
+                    "value": []
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "normalized_company": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "normalized_location": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "Remote"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "normalized_role": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "osint_signals": {
-                  "codecId": "pg/json@1",
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
                   "default": {
                     "kind": "literal",
-                    "value": "[]"
+                    "value": []
                   },
-                  "nativeType": "json",
-                  "nullable": false
+                  "nullable": true
                 },
                 "posted_date": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "rejection_detail": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "rejection_reason": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "role_family": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "unknown"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "role_summary": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "salary_amount": {
-                  "codecId": "pg/float8@1",
-                  "nativeType": "float8",
+                  "codecId": "pg/float4@1",
+                  "dataType": "pg/float4",
                   "nullable": true
                 },
                 "salary_currency": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "salary_period": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "salary_raw": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "shortlist_probability": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "source": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "source_confidence": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
+                  "dataType": "pg/float4",
                   "default": {
                     "kind": "literal",
                     "value": 0.5
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "updated_at": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamptz",
-                  "nullable": false
+                  "nullable": true
                 },
                 "verdict": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "NO_MATCH"
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "verified": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
-                  "nullable": false
+                  "nullable": true
                 }
               },
               "foreignKeys": [],
@@ -1344,7 +1346,8 @@
               "primaryKey": {
                 "columns": [
                   "canonical_id"
-                ]
+                ],
+                "name": "radar_candidates_pkey"
               },
               "uniques": []
             },
@@ -1352,169 +1355,169 @@
               "columns": {
                 "active": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": true
                   },
-                  "nativeType": "bool",
-                  "nullable": false
+                  "nullable": true
                 },
                 "backoff_until": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "board_url": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "company_name": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "consecutive_empty": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "consecutive_failures": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "discovery_origin": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "last_change_at": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
                   "nullable": false
                 },
                 "last_polled": {
                   "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "last_snapshot_count": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "last_snapshot_hash": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "poll_lane": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "high"
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "quality_score": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
+                  "dataType": "pg/float4",
                   "default": {
                     "kind": "literal",
                     "value": 0.5
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "source_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "source_type": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": "unknown"
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "total_direct_url_rate": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
+                  "dataType": "pg/float4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
-                  "nullable": false
+                  "nullable": true
                 },
                 "total_jobs_produced": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
-                  "nullable": false
+                  "nullable": true
                 },
                 "updated_at": {
-                  "codecId": "pg/timestamptz-temporal@1",
+                  "codecId": "pg/timestamp-string@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamptz",
-                  "nullable": false
+                  "nullable": true
                 },
                 "yield_per_poll": {
-                  "codecId": "pg/float8@1",
+                  "codecId": "pg/float4@1",
+                  "dataType": "pg/float4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "float8",
                   "nullable": false
                 }
               },
@@ -1523,7 +1526,8 @@
               "primaryKey": {
                 "columns": [
                   "source_id"
-                ]
+                ],
+                "name": "source_checkpoints_pkey"
               },
               "uniques": []
             }
@@ -1533,11 +1537,13 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "8ef6c9d83da84e7930286323f4bf3fd797a849fcea000d51f7296d792143fab5"
+    "storageHash": "1ba3e5834e775bb666a1de762bae893e79a8c59f65aea2310bd291c4d3e626d3"
   },
   "capabilities": {
     "postgres": {
       "distinctOn": true,
+      "forKeyShare": true,
+      "forNoKeyUpdate": true,
       "jsonAgg": true,
       "lateral": true,
       "limit": true,
@@ -1548,7 +1554,14 @@
       "checkConstraint": true,
       "defaultInInsert": true,
       "enums": true,
+      "forShare": true,
+      "forUpdate": true,
+      "insertOnConflictSkip": true,
+      "insertOnConflictWithoutTarget": true,
       "lateral": true,
+      "lockNowait": true,
+      "lockOf": true,
+      "lockSkipLocked": true,
       "returning": true,
       "scalarList": true
     }

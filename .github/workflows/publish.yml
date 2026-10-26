@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       rebuild_all:
-        description: Rebuild and deploy both BRB images
+        description: Rebuild and deploy all BRB images
         type: boolean
         default: true
 
@@ -29,6 +29,7 @@ jobs:
       matrix: ${{ steps.diff.outputs.matrix }}
       web: ${{ steps.diff.outputs.web }}
       ingest: ${{ steps.diff.outputs.ingest }}
+      migrations: ${{ steps.diff.outputs.migrations }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -44,9 +45,10 @@ jobs:
           sha=${{ github.sha }}
           if [[ "$REBUILD_ALL" == true || -z "$before" || "$before" == 0000* ]]; then
             # No history to diff against (fresh branch): build everything once.
-            echo 'matrix={"include":[{"image":"brb-web","dockerfile":"apps/web/Dockerfile"},{"image":"brb-ingest","dockerfile":"apps/ingest/Dockerfile"}]}' >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[{"image":"brb-web","dockerfile":"apps/web/Dockerfile"},{"image":"brb-ingest","dockerfile":"apps/ingest/Dockerfile"},{"image":"brb-prisma-sync","dockerfile":"docker/prisma-sync.dockerfile"}]}' >> "$GITHUB_OUTPUT"
             echo "web=true" >> "$GITHUB_OUTPUT"
             echo "ingest=true" >> "$GITHUB_OUTPUT"
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only "$before" "$sha")
@@ -69,7 +71,7 @@ jobs:
           sys.exit(0 if pkgs(sys.argv[1]) != pkgs(sys.argv[2]) else 1)
           EOF
           }
-          web=false; ingest=false
+          web=false; ingest=false; migrations=false
           if has '^(scripts/ci/|\.github/workflows/publish.yml|\.dockerignore)'; then web=true; ingest=true; fi
           if has '^packages/db/'; then web=true; fi
           if has '^apps/web/'; then web=true; fi
@@ -84,11 +86,16 @@ jobs:
               ingest=true
             fi
           fi
+          # Like ASM, every app rollout checks schema readiness, even on an
+          # apps-only merge after a previous migration deployment failed.
+          if $web || $ingest || has '^(packages/db/|docker/prisma-sync\.dockerfile|bun\.lock)'; then migrations=true; fi
+          echo "migrations=$migrations" >> "$GITHUB_OUTPUT"
           echo "web=$web" >> "$GITHUB_OUTPUT"
           echo "ingest=$ingest" >> "$GITHUB_OUTPUT"
           entries=""
           if $web; then entries="$entries{\"image\":\"brb-web\",\"dockerfile\":\"apps/web/Dockerfile\"},"; fi
           if $ingest; then entries="$entries{\"image\":\"brb-ingest\",\"dockerfile\":\"apps/ingest/Dockerfile\"},"; fi
+          if $migrations; then entries="$entries{\"image\":\"brb-prisma-sync\",\"dockerfile\":\"docker/prisma-sync.dockerfile\"},"; fi
           echo "matrix={\"include\":[${entries%,}]}" >> "$GITHUB_OUTPUT"
 
   build:
@@ -108,6 +115,7 @@ jobs:
           DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
           DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
           DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
+          DOKPLOY_PRISMA_APP_ID: ${{ secrets.DOKPLOY_PRISMA_APP_ID }}
         run: python3 scripts/ci/dokploy_deploy.py --check
       - id: repo
         run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
@@ -135,7 +143,7 @@ jobs:
     name: deploy-production
     needs: [detect, build]
     if: >-
-      always() && github.ref == 'refs/heads/main' && needs.detect.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.detect.outputs.web == 'true' || needs.detect.outputs.ingest == 'true')
+      always() && github.ref == 'refs/heads/main' && needs.detect.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.detect.outputs.web == 'true' || needs.detect.outputs.ingest == 'true' || needs.detect.outputs.migrations == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment: production
@@ -148,11 +156,14 @@ jobs:
           DOKPLOY_PROJECT_ID: ${{ secrets.DOKPLOY_PROJECT_ID }}
           DOKPLOY_WEB_APP_ID: ${{ secrets.DOKPLOY_WEB_APP_ID }}
           DOKPLOY_INGEST_APP_ID: ${{ secrets.DOKPLOY_INGEST_APP_ID }}
+          DOKPLOY_PRISMA_APP_ID: ${{ secrets.DOKPLOY_PRISMA_APP_ID }}
           BRB_WEB_URL: ${{ secrets.BRB_WEB_URL }}
           DEPLOY_WEB: ${{ needs.detect.outputs.web }}
+          DEPLOY_MIGRATIONS: ${{ needs.detect.outputs.migrations }}
           DEPLOY_INGEST: ${{ needs.detect.outputs.ingest }}
         run: |
           args=()
+          if [[ "$DEPLOY_MIGRATIONS" == true ]]; then args+=(--migrations); fi
           if [[ "$DEPLOY_WEB" == true ]]; then args+=(--web); fi
           if [[ "$DEPLOY_INGEST" == true ]]; then args+=(--ingest); fi
           python3 scripts/ci/dokploy_deploy.py "${args[@]}"

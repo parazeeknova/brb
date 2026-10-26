@@ -11,6 +11,7 @@ export default defineConfig({
     "data/**",
     "logs/**",
     "azure_dump/**",
+    "**/prisma/migrations/snapshots/**",
     "**/src/prisma/contract.d.ts",
     "**/src/prisma/contract.json",
   ],

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 
 import { BrandIcon } from "@/components/brand-icon";
+import { FaqIllustration } from "@/components/faq-illustration";
 import { HeroJobCard } from "@/components/hero-job-card";
 import { JobCard } from "@/components/jobs-tab";
 import { HowItWorks, MarketingSections } from "@/components/marketing-sections";
@@ -436,12 +437,22 @@ function Landing() {
 
       <MarketingSections />
 
-      <section aria-labelledby="faq-title" className="mx-auto max-w-4xl pb-20">
-        <p className="font-pixel text-moss text-sm">BEFORE YOUR NEXT CHAPTER</p>
-        <h2 id="faq-title" className="mt-3 text-3xl sm:text-4xl">
-          A few good questions.
-        </h2>
-        <div className="mt-8 space-y-3">
+      <section
+        aria-labelledby="faq-title"
+        className="mx-auto grid max-w-6xl items-start gap-8 pb-20 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-12"
+      >
+        <div className="text-center lg:sticky lg:top-24 lg:text-left">
+          <p className="font-pixel text-moss text-sm">
+            BEFORE YOUR NEXT CHAPTER
+          </p>
+          <h2 id="faq-title" className="mt-3 text-3xl sm:text-4xl">
+            A few good questions.
+          </h2>
+          <div className="mt-6 lg:mt-10">
+            <FaqIllustration />
+          </div>
+        </div>
+        <div className="space-y-3">
           {[
             {
               a: "Start with your resume, a few projects or examples of your work, and the kind of role you want. In chat, BRB turns those details into a reusable career profile, including your skills, experience, location and preferences. You can refine it as your search changes.",

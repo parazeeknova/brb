@@ -136,7 +136,7 @@ function PixelMeter({ used, max }: { used: number; max: number }) {
   const cells = 24;
   const on = Math.round((used / max) * cells);
   return (
-    <div className="engraved flex gap-[3px] rounded-[0.5rem] p-1.5">
+    <div className="engraved flex gap-0.75 rounded-[0.5rem] p-1.5">
       {Array.from({ length: cells }, (_, i) => (
         <span
           key={i}
@@ -158,7 +158,7 @@ function WeekChart() {
             <span className="font-pixel text-muted-foreground text-[10px]">
               {w.v}
             </span>
-            <div className="flex w-full flex-col-reverse gap-[3px]">
+            <div className="flex w-full flex-col-reverse gap-0.75">
               {Array.from({ length: blocks }, (_, i) => (
                 <span
                   key={i}
@@ -189,7 +189,7 @@ function Funnel() {
             className="grid grid-cols-[5.5rem_1fr_3rem] items-center gap-3"
           >
             <span className="font-pixel text-xs">{f.l}</span>
-            <div className="flex gap-[2px]">
+            <div className="flex gap-0.5">
               {Array.from({ length: cells }, (_, k) => (
                 <span
                   key={k}
