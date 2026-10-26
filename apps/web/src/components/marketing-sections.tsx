@@ -26,10 +26,10 @@ const SOURCES = [
 const STEPS = [
   {
     d: "Drop in your resume and a few real projects. That's the only form you'll fill.",
-    t: "Tell HO who you are",
+    t: "Tell BRB who you are",
   },
   {
-    d: "HO sweeps career sites and boards, dedupes everything and ranks each role against you.",
+    d: "BRB sweeps career sites and boards, dedupes everything and ranks each role against you.",
     t: "It goes hunting",
   },
   {
@@ -112,7 +112,7 @@ export function MarketingSections() {
           Your evenings deserve better than copy‑pasting cover letters.
         </h2>
         <p className="text-muted-foreground mx-auto mt-5 max-w-lg text-lg">
-          Hand HO the next hundred applications. Keep your energy for the
+          Hand BRB the next hundred applications. Keep your energy for the
           conversations that matter.
         </p>
       </section>
@@ -321,7 +321,7 @@ function StepDemo({ i }: { i: number }) {
     <div>
       <LearningCurve />
       <p className="text-muted-foreground mt-3 text-xs">
-        Each run, HO keeps what got replies and drops what didn't.
+        Each run, BRB keeps what got replies and drops what didn't.
       </p>
     </div>
   );

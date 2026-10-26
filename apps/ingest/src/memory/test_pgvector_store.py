@@ -93,6 +93,7 @@ async def _mock_store(
     mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("asyncpg.connect", new=AsyncMock(return_value=AsyncMock())),
         patch("asyncpg.create_pool", new=AsyncMock(return_value=mock_pool)),
         patch("pgvector.asyncpg.register_vector", new=AsyncMock()),
     ):

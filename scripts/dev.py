@@ -126,7 +126,7 @@ def build_child_env(base: dict[str, str]) -> dict[str, str]:
     # Local OpenObserve (default org `default`); SDKs append /v1/logs etc.
     env.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:5090/api/default")
     env.setdefault("OTEL_EXPORTER_OTLP_HEADERS", otel_headers(env))
-    env.setdefault("OTEL_SERVICE_NAME", "ho")
+    env.setdefault("OTEL_SERVICE_NAME", "brb")
     return env
 
 
@@ -285,7 +285,7 @@ async def run_dev(no_web: bool, no_ingest: bool, radar_workers: int, max_minutes
     await preflight(env)
     specs: list[ChildSpec] = []
     if not no_web:
-        specs.append(ChildSpec("web", ("bun", "run", "--filter", "ho-web", "dev")))
+        specs.append(ChildSpec("web", ("bun", "run", "--filter", "brb-web", "dev")))
     if not no_ingest:
         argv: list[str] = ["uv", "run", "python", "apps/ingest/scripts/run_all.py"]
         if radar_workers != 4:
@@ -317,7 +317,7 @@ async def run_dev(no_web: bool, no_ingest: bool, radar_workers: int, max_minutes
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=False,
-    help="ho local dev orchestrator: infra + web + ingest.",
+    help="brb local dev orchestrator: infra + web + ingest.",
 )
 
 

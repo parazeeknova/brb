@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Corpus backup: pg_dump (custom format) + rotation. Run nightly via cron.
 # Usage: ./scripts/backup_corpus.sh [backup_dir]
-# Requires: docker, ho-agent-memory-db running, POSTGRES_PASSWORD in env/.env
+# Requires: docker, brb-agent-memory-db running, POSTGRES_PASSWORD in env/.env
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,11 +24,11 @@ mkdir -p "$BACKUP_DIR"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="$BACKUP_DIR/agent_memory-$STAMP.dump.gz"
 
-docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ho-agent-memory-db \
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" brb-agent-memory-db \
   pg_dump -U postgres -d agent_memory -Fc | gzip > "$OUT"
 echo "wrote $OUT ($(du -h "$OUT" | cut -f1))"
 
 # Rotation: keep newest $KEEP dumps.
 ls -t "$BACKUP_DIR"/agent_memory-*.dump.gz 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f
 
-echo "restore: gunzip -c $OUT | docker exec -i -e PGPASSWORD=\$POSTGRES_PASSWORD ho-agent-memory-db pg_restore -U postgres -d agent_memory --clean"
+echo "restore: gunzip -c $OUT | docker exec -i -e PGPASSWORD=\$POSTGRES_PASSWORD brb-agent-memory-db pg_restore -U postgres -d agent_memory --clean"

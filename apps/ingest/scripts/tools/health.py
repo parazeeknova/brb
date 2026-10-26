@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enhanced health diagnostics for all services in the ho pipeline.
+"""Enhanced health diagnostics for all services in the brb pipeline.
 
 Reports actionable operational diagnostics instead of merely returning
 "healthy" / "down".
@@ -133,9 +133,9 @@ except Exception as e:
 
 print()
 print("Infra")
-_register("searxng", lambda: container_running("ho-searxng"))
-_register("neo4j", lambda: container_running("ho-neo4j"))
-_register("agent-memory-db", lambda: container_running("ho-agent-memory-db"))
+_register("searxng", lambda: container_running("brb-searxng"))
+_register("neo4j", lambda: container_running("brb-neo4j"))
+_register("agent-memory-db", lambda: container_running("brb-agent-memory-db"))
 pgvector_ok = _register("pgvector :5443", lambda: check_port("localhost", 5443))
 
 if pgvector_ok:

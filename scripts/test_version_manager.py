@@ -169,11 +169,11 @@ _FAKE_LOCK = """\
 version = 1
 
 [[package]]
-name = "ho"
+name = "brb"
 version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
-    { name = "ho-ml" },
+    { name = "brb-ml" },
     { name = "requests" },
 ]
 
@@ -181,7 +181,7 @@ dependencies = [
 requires-dist = [{ name = "requests" }]
 
 [[package]]
-name = "ho-ml"
+name = "brb-ml"
 version = "0.4.9"
 source = { editable = "apps/ingest" }
 
@@ -194,16 +194,16 @@ source = { registry = "https://pypi.org/simple" }
 
 def test_sync_uv_lock_updates_only_matching_package(tmp_path: Path) -> None:
     (tmp_path / "uv.lock").write_text(_FAKE_LOCK)
-    assert vm.sync_uv_lock(tmp_path, "ho", "0.0.2") is True
+    assert vm.sync_uv_lock(tmp_path, "brb", "0.0.2") is True
     text = (tmp_path / "uv.lock").read_text()
-    assert 'name = "ho"\nversion = "0.0.2"' in text
-    assert 'name = "ho-ml"\nversion = "0.4.9"' in text
+    assert 'name = "brb"\nversion = "0.0.2"' in text
+    assert 'name = "brb-ml"\nversion = "0.4.9"' in text
     assert 'name = "requests"\nversion = "2.32.0"' in text
-    assert '{ name = "ho-ml" }' in text
+    assert '{ name = "brb-ml" }' in text
 
 
 def test_sync_uv_lock_missing_file_is_noop(tmp_path: Path) -> None:
-    assert vm.sync_uv_lock(tmp_path, "ho", "0.0.2") is False
+    assert vm.sync_uv_lock(tmp_path, "brb", "0.0.2") is False
 
 
 def test_sync_uv_lock_unknown_package_is_noop(tmp_path: Path) -> None:
@@ -219,7 +219,7 @@ def test_e2e_pyproject_bump_syncs_and_stages_lock(
     root = tmp_path / "repo"
     root.mkdir()
     (root / "package.json").write_text('{"name": "r", "version": "0.0.1"}\n')
-    (root / "pyproject.toml").write_text('[project]\nname = "ho"\nversion = "0.0.1"\n')
+    (root / "pyproject.toml").write_text('[project]\nname = "brb"\nversion = "0.0.1"\n')
     (root / "uv.lock").write_text(_FAKE_LOCK)
     _git(root, "init", "-q")
     _git(root, "config", "user.email", "t@t.t")
@@ -230,8 +230,8 @@ def test_e2e_pyproject_bump_syncs_and_stages_lock(
     monkeypatch.chdir(root)
     assert vm.main([]) == 0
     text = (root / "uv.lock").read_text()
-    assert 'name = "ho"\nversion = "0.0.2"' in text
-    assert 'name = "ho-ml"\nversion = "0.4.9"' in text
+    assert 'name = "brb"\nversion = "0.0.2"' in text
+    assert 'name = "brb-ml"\nversion = "0.4.9"' in text
     assert "uv.lock" in _git(root, "diff", "--cached", "--name-only")
 
 

@@ -18,7 +18,7 @@ from src.logging import get_logger
 logger = get_logger("wikipedia")
 
 _API = "https://en.wikipedia.org/w/api.php"
-_UA = "Mozilla/5.0 (X11; Linux x86_64) ho-radar/1.0"
+_UA = "Mozilla/5.0 (X11; Linux x86_64) brb-radar/1.0"
 
 # Wikipedia asks for < 1 req/s; the rest of the pipeline calls this from
 # concurrent workers, so serialize and pace requests globally.

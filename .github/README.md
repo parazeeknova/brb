@@ -1,11 +1,11 @@
 > [!IMPORTANT]
-> **A note to recruiters:** If you somehow ended up here, hello. HO [Hyperdimensional Orchestrator] is a job-discovery engine: it finds, verifies, and archives real postings from across the internet. If your posting is in here, congratulations your ATS has officially become part of my distributed systems experiment.
+> **A note to recruiters:** If you somehow ended up here, hello. BRB is a job-discovery engine: it finds, verifies, and archives real postings from across the internet. If your posting is in here, congratulations your ATS has officially become part of my distributed systems experiment.
 
 </br>
 
 <div align="center">
 
-  <img src="https://img.przknv.cc/t/f_webp/ho.png" width="98%" alt="ho banner">
+  <img src="https://img.przknv.cc/t/brb_github_banner.png" width="98%" alt="brb banner">
 
 </div>
 
@@ -13,15 +13,19 @@
 
 ## Introduction
 
-HO (Hyperdimensional Orchestrator) is a job-discovery engine built because existing job platforms are fundamentally static: they search a limited set of sources, rank with fixed rules, and show largely generic results.
+BRB is a job-discovery engine built because existing job platforms are fundamentally static: they search a limited set of sources, rank with fixed rules, and show largely generic results.
 
-HO runs 24/7 as two apps. The **ingest service** discovers postings across the entire internet (ATS APIs, job boards, free JSON firehoses, search engines), verifies each one is a real posting, normalizes and embeds it, and enriches it with founder/funding intel — building one large corpus across every role, level, and function, from junior to staff, engineering to design. The **web app** (in progress) turns that corpus into personalized matching: account, persona onboarding, and a chat agent.
+BRB runs 24/7 as two apps. The **ingest service** discovers postings across the entire internet (ATS APIs, job boards, free JSON firehoses, search engines), verifies each one is a real posting, normalizes and embeds it, and enriches it with founder/funding intel — building one large corpus across every role, level, and function, from junior to staff, engineering to design. The **web app** (in progress) turns that corpus into personalized matching: account, persona onboarding, and a chat agent.
 
 The goal is not a bigger scrape. It is a corpus you can trust: every row is either proven real (structured ATS APIs, decision-model judgments) or explicitly marked unverified — never silently faked, never silently dropped.
 
+## Rename compatibility
+
+BRB retains the existing `ho:*` Redis keys and `ho_*` Docker volume names so saved corpus data, queued jobs, deduplication and API budgets survive the rename. These are storage identifiers. Stop the old Compose stack before starting the renamed stack, without removing volumes. `BRB_NON_INTERACTIVE` is the new environment setting; the previous setting remains supported.
+
 ## Performance
 
-HO runs as a continuous stream pipeline (Redis Streams between stages), not batch sweeps. Measured on 2 local processes over 2-minute windows:
+BRB runs as a continuous stream pipeline (Redis Streams between stages), not batch sweeps. Measured on 2 local processes over 2-minute windows:
 
 | What | Observed |
 | --- | --- |
@@ -62,7 +66,7 @@ Embeddings (Gemini 3072-d, batched, content-hash deduped) land in pgvector. Enri
 ```mermaid
 flowchart TD
 
-HO["<b>HO · CONTINUOUS JOB CORPUS PIPELINE</b><br/><br/>11 PRODUCERS → STREAMS → STAGES → CORPUS, FOREVER<br/><br/>No sweeps · No phases · Tiered trust · Every crash redelivers"]
+BRB["<b>BRB · CONTINUOUS JOB CORPUS PIPELINE</b><br/><br/>11 PRODUCERS → STREAMS → STAGES → CORPUS, FOREVER<br/><br/>No sweeps · No phases · Tiered trust · Every crash redelivers"]
 
 %% ============================================================
 %% INFRASTRUCTURE
@@ -297,7 +301,7 @@ classDef corpusNode fill:#1e1b4b,color:#e0e7ff,stroke:#a78bfa
 classDef opsNode fill:#431407,color:#ffedd5,stroke:#fb923c
 classDef noteNode fill:#f8fafc,color:#111827,stroke:#94a3b8,stroke-dasharray:5 5
 
-class HO rootNode
+class BRB rootNode
 
 class SEARXNG,TOR,PG,REDIS,NEO,OO infraNode
 
@@ -324,7 +328,7 @@ Postgres holds every record (observations, candidates, embeddings, checkpoints).
 
 ## 5. Engineering Principles, Reliability & Roadmap
 
-HO is designed around a few core engineering constraints: PostgreSQL remains the transactional source of truth, pgvector provides semantic retrieval without another vector database, Neo4j handles relationship-heavy intelligence, and Redis Streams carry motion between stages that never block each other. Every write is idempotent, every queue is bounded, every crash redelivers — so killing a container mid-run (deploys do this on every merge) loses nothing.
+BRB is designed around a few core engineering constraints: PostgreSQL remains the transactional source of truth, pgvector provides semantic retrieval without another vector database, Neo4j handles relationship-heavy intelligence, and Redis Streams carry motion between stages that never block each other. Every write is idempotent, every queue is bounded, every crash redelivers — so killing a container mid-run (deploys do this on every merge) loses nothing.
 
 External systems are treated as unreliable dependencies. Search sources can disappear, ATS schemas can change, HTTP requests can be blocked, browser sessions can fail, model APIs can 429 or run dry. The system therefore uses retries, per-source rate limits and daily budgets, checkpoints, persistent dedup, verdict caching, fallback acquisition paths, and a DLQ for poison messages. An unprocessed URL is preferable to a fabricated job.
 
@@ -350,7 +354,7 @@ The long-term direction is corpus depth and trust: more sources, more functions 
 
 ## Final Notes
 
-HO is intentionally overengineered for its original purpose. That is part of the point. It started as a single-person job-search automaton and evolved into a multi-user discovery platform: a 24/7 corpus service plus a matching web app.
+BRB is intentionally overengineered for its original purpose. That is part of the point. It started as a single-person job-search automaton and evolved into a multi-user discovery platform: a 24/7 corpus service plus a matching web app.
 
 The system is not designed around the assumption that the first version of a source, gate, query strategy, or verification judgment will be correct. Every layer is treated as replaceable and measurable. Sources can be reweighted, gates can be re-cut, budgets can be retuned, and the corpus keeps score of what each producer actually yields.
 
@@ -359,7 +363,7 @@ The most important component is therefore not any individual model or database. 
 **Discover. Verify. Repeat.**
 
 > [!NOTE]
-> HO is an engineering experiment built around a very simple premise: a job is only real if you can prove it.
+> BRB is an engineering experiment built around a very simple premise: a job is only real if you can prove it.
 
 ---
 

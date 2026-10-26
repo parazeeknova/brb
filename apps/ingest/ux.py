@@ -1,13 +1,13 @@
 """Shared plain-text UI for the memory-setup CLI scripts.
 
-Clean ``[ho]``-prefixed lines, matching the aesthetic of ``bun run run``.
+Clean ``[brb]``-prefixed lines, matching the aesthetic of ``bun run run``.
 No rich panels, tables, rules, arrows, or ANSI decoration — just the same
 plain log lines the pipeline uses.
 """
 
 from __future__ import annotations
 
-PREFIX = "[ho] "
+PREFIX = "[brb] "
 
 
 class _Status:
@@ -27,7 +27,7 @@ class _Status:
 
 
 class _Console:
-    """Plain-text stand-in for rich.Console: prints [ho]-prefixed lines."""
+    """Plain-text stand-in for rich.Console: prints [brb]-prefixed lines."""
 
     def status(self, msg: str = "", spinner: str = "") -> _Status:
         return _Status(msg)
@@ -56,7 +56,7 @@ def divider(text: str = "") -> None:
 
 
 def chip(kind: str, msg: str) -> None:
-    """Plain status line:  [ho] OK message / WARN / FAIL / INFO"""
+    """Plain status line:  [brb] OK message / WARN / FAIL / INFO"""
     tags = {"ok": "OK", "warn": "WARN", "err": "FAIL", "info": "INFO"}
     print(f"{PREFIX}{tags.get(kind, 'INFO')} {msg}", flush=True)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-command ingest runner: infra + radar corpus builder.
 
-Everything ho offers, from a single invocation:
+Everything brb offers, from a single invocation:
 
   1. docker compose up the ingest stack (searxng, neo4j, agent-memory-db) and
      wait for health;
@@ -63,7 +63,7 @@ def _http_ok(url: str, timeout: float = 3.0) -> bool:
     try:
         import urllib.request
 
-        req = urllib.request.Request(url, method="GET", headers={"User-Agent": "ho/run_all"})
+        req = urllib.request.Request(url, method="GET", headers={"User-Agent": "brb/run_all"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status < 500
     except Exception:
@@ -81,7 +81,7 @@ def _port_open(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 async def _wait_for(name: str, timeout: float) -> bool:
-    print(f"[ho] waiting for {name}...", flush=True)
+    print(f"[brb] waiting for {name}...", flush=True)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if name == "searxng" and _http_ok("http://localhost:8080/"):
@@ -108,10 +108,10 @@ def _docker(args: list[str]) -> tuple[int, str]:
 
 
 def _compose_up() -> bool:
-    print("[ho] starting docker services...", flush=True)
+    print("[brb] starting docker services...", flush=True)
     code, out = _docker(["up", "-d", *DOCKER_SERVICES])
     if code != 0:
-        print(f"[ho] docker compose up failed: {out}", flush=True)
+        print(f"[brb] docker compose up failed: {out}", flush=True)
         return False
     return True
 
@@ -122,10 +122,10 @@ async def _ensure_infra() -> bool:
     ok = True
     for name in ("agent-memory-db", "neo4j", "searxng", "redis"):
         if not await _wait_for(name, HOST_PROBES.get(name, (0, 15))[1]):
-            print(f"[ho] WARNING: {name} not ready", flush=True)
+            print(f"[brb] WARNING: {name} not ready", flush=True)
             ok = False
         else:
-            print(f"[ho] ✓ {name} ready", flush=True)
+            print(f"[brb] ✓ {name} ready", flush=True)
     return ok
 
 
@@ -202,9 +202,9 @@ def _ensure_memory() -> None:
     """
     persona = REPO / "data" / "persona.json"
     if not persona.exists():
-        print("[ho] no data/persona.json — matching uses CANDIDATE_PERSONA env", flush=True)
+        print("[brb] no data/persona.json — matching uses CANDIDATE_PERSONA env", flush=True)
         return
-    print(f"[ho] memory: {_memory_status()}", flush=True)
+    print(f"[brb] memory: {_memory_status()}", flush=True)
 
 
 async def _check_embeds() -> bool:
@@ -217,19 +217,19 @@ async def _check_embeds() -> bool:
     try:
         from src.llm.embed_client import embed_one
     except Exception as e:
-        print(f"[ho] embeddings: client import failed ({e}); aborting", flush=True)
+        print(f"[brb] embeddings: client import failed ({e}); aborting", flush=True)
         return False
     try:
         vec = await embed_one("connectivity check")
     except Exception as e:
-        print(f"[ho] embeddings: request failed ({e}); aborting", flush=True)
+        print(f"[brb] embeddings: request failed ({e}); aborting", flush=True)
         return False
     if not vec:
-        print("[ho] embeddings unreachable — matching is dead without vectors.", flush=True)
-        print("[ho] fix: set GEMINI_API_KEY and enable billing for Gemini API", flush=True)
+        print("[brb] embeddings unreachable — matching is dead without vectors.", flush=True)
+        print("[brb] fix: set GEMINI_API_KEY and enable billing for Gemini API", flush=True)
         return False
     model = os.environ.get("EMBED_MODEL", "?")
-    print(f"[ho] embeddings: ok ({len(vec)}d via {model})", flush=True)
+    print(f"[brb] embeddings: ok ({len(vec)}d via {model})", flush=True)
     return True
 
 
@@ -253,7 +253,7 @@ async def _run_loop(args: argparse.Namespace) -> int:
     ]
     if args.max_minutes:
         cmd += ["--max-minutes", str(args.max_minutes)]
-    print(f"[ho] launching loop: {' '.join(cmd)}", flush=True)
+    print(f"[brb] launching loop: {' '.join(cmd)}", flush=True)
     # start_new_session: loop.py becomes a session leader so a terminal
     # Ctrl+C (foreground process group) never reaches it directly. run_all
     # stays the single owner of loop.py's lifecycle and tears the whole
@@ -307,7 +307,7 @@ def _handle_sig(signum: int, frame) -> None:  # noqa: ANN001
     import contextlib
 
     with contextlib.suppress(Exception):
-        print(f"\n[ho] signal {signum}; shutting down...", flush=True)
+        print(f"\n[brb] signal {signum}; shutting down...", flush=True)
     raise KeyboardInterrupt
 
 
@@ -526,7 +526,7 @@ def _status_report(watch: bool = False) -> int:
         t_hdr = Table(box=None, show_header=False, expand=True, padding=(0, 0))
         t_hdr.add_column("title", style="bold italic cyan", justify="left")
         t_hdr.add_column("time", style="dim", justify="right")
-        t_hdr.add_row(f"HO AGENT PIPELINE STATUS  ·  {pid_str}", now_str)
+        t_hdr.add_row(f"BRB AGENT PIPELINE STATUS  ·  {pid_str}", now_str)
 
         # 1. Rates Table
         rates = stats["rates"]
@@ -909,7 +909,7 @@ def main() -> int:
     try:
         _lock_sock.bind(("127.0.0.1", 53921))
     except OSError:
-        print("[ho] another run owns the pipeline; reaping strays and taking over", flush=True)
+        print("[brb] another run owns the pipeline; reaping strays and taking over", flush=True)
     # A previous crashed run may have leaked children: reap orphans so
     # `bun run run` always starts one clean pipeline.
     _reap_pipeline_orphans(sig="KILL", grace_s=2.0)
@@ -920,7 +920,7 @@ def main() -> int:
     async def _run() -> int:
         if not args.no_infra:
             if not await _ensure_infra():
-                print("[ho] infra failed; aborting", flush=True)
+                print("[brb] infra failed; aborting", flush=True)
                 return 1
             # Autoheal: if containers exist but are Exited, restart them
             _autoheal_containers()
@@ -929,17 +929,17 @@ def main() -> int:
         _ensure_memory()
         # Startup snapshot: DB / graph / RAG / events.
         pg, graph, rag, ml, disc = await _system_stats()
-        print(f"[ho] db: {pg}", flush=True)
-        print(f"[ho] graph: {graph}", flush=True)
-        print(f"[ho] rag: {rag}", flush=True)
-        print(f"[ho] ml: {ml}", flush=True)
-        print(f"[ho] discord: {disc}", flush=True)
+        print(f"[brb] db: {pg}", flush=True)
+        print(f"[brb] graph: {graph}", flush=True)
+        print(f"[brb] rag: {rag}", flush=True)
+        print(f"[brb] ml: {ml}", flush=True)
+        print(f"[brb] discord: {disc}", flush=True)
         print(
-            f"[ho] pipeline config: procs={args.procs}; stops on --max-minutes / Ctrl+C",
+            f"[brb] pipeline config: procs={args.procs}; stops on --max-minutes / Ctrl+C",
             flush=True,
         )
         if args.dry_run:
-            print("[ho] dry-run complete; infra is up", flush=True)
+            print("[brb] dry-run complete; infra is up", flush=True)
             return 0
         return await _run_loop(args)
 
@@ -956,7 +956,7 @@ def main() -> int:
         rc = asyncio.run(_run())
         return rc
     except KeyboardInterrupt:
-        print("[ho] stopped.", flush=True)
+        print("[brb] stopped.", flush=True)
         return 0
     finally:
         # Release the loopback-port lock so the next `bun run run` can bind.
@@ -968,10 +968,10 @@ def _autoheal_containers() -> None:
     import subprocess as _sp
 
     for name in (
-        "ho-searxng",
-        "ho-agent-memory-db",
-        "ho-neo4j",
-        "ho-redis",
+        "brb-searxng",
+        "brb-agent-memory-db",
+        "brb-neo4j",
+        "brb-redis",
     ):
         try:
             r = _sp.run(
@@ -982,11 +982,11 @@ def _autoheal_containers() -> None:
             )
             status = (r.stdout or "").strip().split()[0] if r.stdout else "missing"
             if status == "Exited":
-                print(f"[ho] autoheal: restarting {name} (was Exited)", flush=True)
+                print(f"[brb] autoheal: restarting {name} (was Exited)", flush=True)
                 _sp.run(["docker", "start", name], capture_output=True, timeout=15)
             elif status == "missing":
-                print(f"[ho] autoheal: {name} missing — compose up", flush=True)
-                svc = name.removeprefix("ho-")
+                print(f"[brb] autoheal: {name} missing — compose up", flush=True)
+                svc = name.removeprefix("brb-")
                 _sp.run(
                     ["docker", "compose", "-f", str(COMPOSE), "up", "-d", svc],
                     capture_output=True,

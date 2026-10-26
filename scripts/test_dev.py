@@ -55,7 +55,7 @@ def test_build_child_env_sets_runtime_defaults_without_clobbering(monkeypatch) -
     assert env["PYTHONPATH"].split(":")[1] == "apps/ingest"
     assert env["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://localhost:5090/api/default"
     assert env["OTEL_EXPORTER_OTLP_HEADERS"].startswith("Authorization=Basic ")
-    assert env["OTEL_SERVICE_NAME"] == "ho"
+    assert env["OTEL_SERVICE_NAME"] == "brb"
 
 
 def test_otel_headers_derive_from_root_creds() -> None:

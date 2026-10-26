@@ -1,21 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { BrandIcon } from "@/components/brand-icon";
 import { ChatTab } from "@/components/chat-tab";
 import { JobsTab } from "@/components/jobs-tab";
-import { LeafIcon, MoonIcon } from "@/components/pixel-icons";
+import { MoonIcon } from "@/components/pixel-icons";
 
 export const Route = createFileRoute("/app")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "HO · Assistant" },
+      { title: "BRB · Assistant" },
       {
         content:
           "Chat with your assistant and browse fresh jobs matched to your profile every day.",
         name: "description",
       },
-      { content: "HO · Assistant", property: "og:title" },
+      { content: "BRB · Assistant", property: "og:title" },
       {
         content:
           "Fresh jobs matched to you, with honest advice on what to apply for.",
@@ -40,8 +41,8 @@ function Index() {
       <div className="relative flex h-full flex-col px-4 sm:px-8">
         <header className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-6">
           <Link to="/" className="flex items-center gap-2">
-            <LeafIcon size={20} className="text-moss" />
-            <span className="font-pixel hidden text-lg sm:inline">HO</span>
+            <BrandIcon />
+            <span className="font-pixel hidden text-lg sm:inline">BRB</span>
           </Link>
 
           <nav

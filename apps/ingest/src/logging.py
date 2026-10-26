@@ -1,4 +1,4 @@
-"""Structured logging for the ho pipeline.
+"""Structured logging for the brb pipeline.
 
 Replaces all print() calls with machine-readable structured logs.
 Supports contextual fields (connector, source, entity, worker, event_id,
@@ -31,7 +31,7 @@ class LogEntry:
     timestamp: str = ""
     level: str = "INFO"
     message: str = ""
-    logger: str = "ho"
+    logger: str = "brb"
     # Optional contextual fields
     connector: str = ""
     source: str = ""
@@ -46,7 +46,7 @@ class LogEntry:
 
 
 class StructuredLogger:
-    def __init__(self, name: str = "ho", min_level: LogLevel = LogLevel.INFO) -> None:
+    def __init__(self, name: str = "brb", min_level: LogLevel = LogLevel.INFO) -> None:
         self.name = name
         self.min_level = min_level
         self._context: dict[str, Any] = {}
@@ -119,7 +119,7 @@ class StructuredLogger:
 
 
 # Module-level convenience
-_root = StructuredLogger(name="ho")
+_root = StructuredLogger(name="brb")
 
 
 class _OtelSink:
@@ -149,7 +149,7 @@ class _OtelSink:
                     key, _, value = pair.partition("=")
                     headers[key.strip()] = value.strip()
             provider = LoggerProvider(
-                resource=Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "ho")})
+                resource=Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "brb")})
             )
             provider.add_log_record_processor(
                 BatchLogRecordProcessor(
@@ -160,7 +160,7 @@ class _OtelSink:
             handler = LoggingHandler(level=0, logger_provider=provider)
             import logging as _stdlib_logging
 
-            self._logger = _stdlib_logging.getLogger("ho.otel")
+            self._logger = _stdlib_logging.getLogger("brb.otel")
             self._logger.handlers = [handler]
             self._logger.propagate = False
         except Exception:

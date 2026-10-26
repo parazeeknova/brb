@@ -1,4 +1,4 @@
-name: ho
+name: brb
 
 x-logging: &default-logging
   driver: "json-file"
@@ -8,7 +8,7 @@ x-logging: &default-logging
 
 services:
   searxng:
-    container_name: ho-searxng
+    container_name: brb-searxng
     image: searxng/searxng:latest
     restart: unless-stopped
     mem_limit: 2g
@@ -29,7 +29,7 @@ services:
     logging: *default-logging
 
   torproxy:
-    container_name: ho-torproxy
+    container_name: brb-torproxy
     image: dperson/torproxy
     restart: unless-stopped
     mem_limit: 1g
@@ -41,7 +41,7 @@ services:
       - ../apps/ingest/.tor-geoip/geoip6:/usr/share/tor/geoip6:ro
 
   agent-memory-db:
-    container_name: ho-agent-memory-db
+    container_name: brb-agent-memory-db
     image: pgvector/pgvector:pg18
     restart: unless-stopped
     mem_limit: 6g
@@ -58,7 +58,7 @@ services:
     logging: *default-logging
 
   redis:
-    container_name: ho-redis
+    container_name: brb-redis
     image: redis:alpine
     restart: unless-stopped
     mem_limit: 5g
@@ -79,7 +79,7 @@ services:
     logging: *default-logging
 
   openobserve:
-    container_name: ho-openobserve
+    container_name: brb-openobserve
     image: public.ecr.aws/zinclabs/openobserve-enterprise:v1.0.3
     restart: unless-stopped
     mem_limit: 4g
@@ -94,7 +94,7 @@ services:
     logging: *default-logging
 
   neo4j:
-    container_name: ho-neo4j
+    container_name: brb-neo4j
     image: neo4j:community-ubi10
     restart: unless-stopped
     mem_limit: 4g
@@ -111,8 +111,8 @@ services:
     logging: *default-logging
 
   pipeline:
-    container_name: ho-pipeline
-    image: ho-ingest
+    container_name: brb-pipeline
+    image: brb-ingest
     build:
       context: ..
       dockerfile: apps/ingest/Dockerfile
@@ -125,7 +125,7 @@ services:
       - ../.env
     environment:
       PYTHONPATH: /app:/app/apps/ingest
-      HO_NON_INTERACTIVE: "1"
+      BRB_NON_INTERACTIVE: "1"
       OTEL_ENABLED: "1"
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -147,10 +147,17 @@ services:
         condition: service_started
     logging: *default-logging
 
+# Keep existing physical volumes when changing the Compose project name.
 volumes:
   openobserve_data:
+    name: ho_openobserve_data
   agent_memory_data:
+    name: ho_agent_memory_data
   neo4j_data:
+    name: ho_neo4j_data
   neo4j_logs:
+    name: ho_neo4j_logs
   searxng_data:
+    name: ho_searxng_data
   redis_data:
+    name: ho_redis_data

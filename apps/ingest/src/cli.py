@@ -51,7 +51,7 @@ class PipelineDisplay:
 
         return Panel(
             content,
-            title="[bold]ho[/bold] — job matching pipeline",
+            title="[bold]brb[/bold] — job matching pipeline",
             border_style="cyan",
             box=box.ROUNDED,
         )

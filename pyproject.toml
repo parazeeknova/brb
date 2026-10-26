@@ -1,6 +1,6 @@
 [project]
-name = "ho"
-version = "0.1.19"
+name = "brb"
+version = "0.1.20"
 description = "Thy Job shall be mine"
 requires-python = ">=3.14"
 dependencies = [
@@ -50,7 +50,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.ruff.lint.isort]
-known-first-party = ["ho"]
+known-first-party = ["brb"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/ingest/src/memory/pgvector_store.py" = ["E501"]

@@ -155,7 +155,7 @@ async def remoteok_tick(ctx: Any) -> int:
                 try:
                     resp = await client.get(
                         f"https://remoteok.com/api?tag={tag}",
-                        headers={"User-Agent": "ho-corpus/1.0 (job archive research)"},
+                        headers={"User-Agent": "brb-corpus/1.0 (job archive research)"},
                     )
                     if resp.status_code != 200:
                         continue

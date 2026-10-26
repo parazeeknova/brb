@@ -1,8 +1,8 @@
 {
-  "name": "@ho/db",
-  "version": "0.1.0",
+  "name": "@brb/db",
+  "version": "0.1.1",
   "private": true,
-  "description": "Shared Postgres contract (Prisma 8) for the ho corpus. Ingest writes via SQL; this is the read contract for the web app. Never migrate/push against the corpus database.",
+  "description": "Shared Postgres contract (Prisma 8) for the brb corpus. Ingest writes via SQL; this is the read contract for the web app. Never migrate/push against the corpus database.",
   "scripts": {
     "contract:emit": "prisma contract emit",
     "contract:format": "prisma contract format",

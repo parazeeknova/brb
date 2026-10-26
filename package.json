@@ -1,8 +1,8 @@
 {
-  "name": "ho",
-  "version": "0.1.23",
+  "name": "brb",
+  "version": "0.1.24",
   "private": true,
-  "description": "ho monorepo",
+  "description": "brb monorepo",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -22,10 +22,10 @@
     "format:check": "uv run ruff format --check . && bunx oxfmt --check && lerna run format:check",
     "bump": "uv run python scripts/version_manager.py",
     "bump:dry": "uv run python scripts/version_manager.py --dry-run",
-    "docker:build": "docker build -f apps/web/Dockerfile -t ho-web . && docker build -f apps/ingest/Dockerfile -t ho-ingest .",
+    "docker:build": "docker build -f apps/web/Dockerfile -t brb-web . && docker build -f apps/ingest/Dockerfile -t brb-ingest .",
     "test": "uv run python -m pytest . --ignore=refs -n 4 --dist loadfile -q && lerna run test",
     "lint": "uv run ruff check . && lerna run lint",
-    "build:web": "lerna run build --scope=ho-web",
+    "build:web": "lerna run build --scope=brb-web",
     "prepare": "lefthook install"
   },
   "devDependencies": {

@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { BrandIcon } from "@/components/brand-icon";
 import { LearningCurve } from "@/components/pixel-diagrams";
 import {
   ArrowIcon,
-  LeafIcon,
   MoonIcon,
   PinIcon,
   SparkleIcon,
@@ -14,15 +14,15 @@ export const Route = createFileRoute("/profile")({
   component: Profile,
   head: () => ({
     meta: [
-      { title: "HO · Your profile" },
+      { title: "BRB · Your profile" },
       {
         content:
-          "Your HO profile: plan usage, application stats, preferences and the experience HO writes from.",
+          "Your BRB profile: plan usage, application stats, preferences and the experience BRB writes from.",
         name: "description",
       },
-      { content: "HO · Your profile", property: "og:title" },
+      { content: "BRB · Your profile", property: "og:title" },
       {
-        content: "Plan, usage, stats and preferences for your HO job search.",
+        content: "Plan, usage, stats and preferences for your BRB job search.",
         property: "og:description",
       },
       { content: "website", property: "og:type" },
@@ -237,8 +237,8 @@ function Profile() {
     <div className="min-h-dvh px-4 pb-16 sm:px-8">
       <header className="mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
         <Link to="/" className="flex items-center gap-2">
-          <LeafIcon size={20} className="text-moss" />
-          <span className="font-pixel text-lg">HO</span>
+          <BrandIcon />
+          <span className="font-pixel text-lg">BRB</span>
         </Link>
         <div className="flex items-center gap-2">
           <button
@@ -363,7 +363,7 @@ function Profile() {
           </Card>
         </div>
 
-        <Card title="HO is getting sharper for you">
+        <Card title="BRB is getting sharper for you">
           <LearningCurve />
           <p className="text-muted-foreground mt-3 text-sm">
             Qualified applications per run, tuned on your replies and
@@ -411,7 +411,7 @@ function Profile() {
 
         {/* Experience */}
         <div className="grid gap-5 lg:grid-cols-2">
-          <Card title="Experience HO writes from">
+          <Card title="Experience BRB writes from">
             <ol className="space-y-4">
               {EXPERIENCE.map((e) => (
                 <li key={e.org} className="engraved rounded-[1.1rem] p-4">

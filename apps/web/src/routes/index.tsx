@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { BrandIcon } from "@/components/brand-icon";
 import { HeroJobCard } from "@/components/hero-job-card";
 import { JobCard } from "@/components/jobs-tab";
 import { HowItWorks, MarketingSections } from "@/components/marketing-sections";
@@ -15,9 +16,9 @@ import { ArrowIcon, LeafIcon, MoonIcon } from "@/components/pixel-icons";
 import { PixelSword } from "@/components/pixel-sword";
 import { JOBS } from "@/lib/jobs-data";
 
-const TITLE = "HO · A job search engine that learns";
+const TITLE = "BRB · A job search engine that learns";
 const DESC =
-  "HO discovers jobs across the web, ranks them against real experience, writes grounded applications and learns from every outcome.";
+  "BRB discovers jobs across the web, ranks them against real experience, writes grounded applications and learns from every outcome.";
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/")({
 
 const BENEFITS = [
   {
-    d: "HO watches ATS boards, career pages and startup lists around the clock, so you see jobs hours after they go live.",
+    d: "BRB watches ATS boards, career pages and startup lists around the clock, so you see jobs hours after they go live.",
     n: "24/7",
     t: "Never miss a fresh role",
   },
@@ -63,9 +64,9 @@ const FOOTER: { h: string; links: { t: string; href: string }[] }[] = [
   {
     h: "Open source",
     links: [
-      { href: "https://github.com/parazeeknova/ho", t: "GitHub" },
+      { href: "https://github.com/parazeeknova/brb", t: "GitHub" },
       {
-        href: "https://github.com/parazeeknova/ho/issues",
+        href: "https://github.com/parazeeknova/brb/issues",
         t: "Report an issue",
       },
     ],
@@ -218,8 +219,8 @@ function Landing() {
         </div>
         <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
           <Link to="/" className="flex items-center gap-2">
-            <LeafIcon size={20} className="text-moss" />
-            <span className="font-pixel text-lg">HO</span>
+            <BrandIcon />
+            <span className="font-pixel text-lg">BRB</span>
           </Link>
           <div className="flex items-center gap-2">
             <button
@@ -251,9 +252,8 @@ function Landing() {
               that learns.
             </h1>
             <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
-              HO, the Hyperdimensional Orchestrator, scans the web for fresh
-              roles, ranks them against your real experience and tells you
-              plainly what to apply for.
+              BRB scans the web for fresh roles, ranks them against your real
+              experience and tells you plainly what to apply for.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-5">
               <Link
@@ -300,7 +300,7 @@ function Landing() {
         <div>
           <h2 className="text-2xl sm:text-4xl">One loop, always running</h2>
           <p className="text-muted-foreground mt-4 max-w-sm leading-relaxed">
-            Most tools search and stop. HO treats every application as an
+            Most tools search and stop. BRB treats every application as an
             experiment, watches what happens, and quietly gets better at picking
             the next one.
           </p>
@@ -333,7 +333,7 @@ function Landing() {
           Fast where it should be. Careful where it counts.
         </h2>
         <p className="text-muted-foreground mt-4 max-w-xl leading-relaxed">
-          HO reads thousands of postings a minute so you don't have to, then
+          BRB reads thousands of postings a minute so you don't have to, then
           slows right down before anything goes out with your name on it.
         </p>
       </section>
@@ -409,7 +409,7 @@ function Landing() {
             Discover. Measure. Adapt. Repeat.
           </h2>
           <p className="text-muted-foreground mx-auto mt-5 max-w-md">
-            Let HO do the searching, sorting and second-guessing. You just show
+            Let BRB do the searching, sorting and second-guessing. You just show
             up for the interviews.
           </p>
           <Link
@@ -429,12 +429,11 @@ function Landing() {
         <div className="glass grid gap-8 rounded-[1.8rem] p-6 sm:grid-cols-2 sm:p-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
           <div>
             <Link to="/" className="flex items-center gap-2">
-              <LeafIcon size={20} className="text-moss" />
-              <span className="font-pixel text-lg">HO</span>
+              <BrandIcon />
+              <span className="font-pixel text-lg">BRB</span>
             </Link>
             <p className="text-muted-foreground mt-3 max-w-xs text-sm leading-relaxed">
-              The Hyperdimensional Orchestrator. A job search that learns. Open
-              source.
+              A job search that learns. Open source.
             </p>
           </div>
           {FOOTER.map((col) => (

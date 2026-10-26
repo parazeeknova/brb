@@ -1,4 +1,4 @@
-"""Local analytics: storage + container + DB numbers for the ho project.
+"""Local analytics: storage + container + DB numbers for the brb project.
 
 Reports:
   - Disk usage of the project, intel, logs
@@ -27,9 +27,9 @@ logger = get_logger("analytics")
 PROJECT = Path(__file__).resolve().parents[2]
 
 CONTAINER_VOLUME_MAP = {
-    "ho-agent-memory-db": "ho_agent_memory_data",
-    "ho-neo4j": "ho_neo4j_data",
-    "ho-searxng": None,
+    "brb-agent-memory-db": "ho_agent_memory_data",
+    "brb-neo4j": "ho_neo4j_data",
+    "brb-searxng": None,
 }
 
 
@@ -86,9 +86,9 @@ def _volume_sizes() -> dict[str, str]:
     measure inside the mounting container with `du` for accuracy."""
     # container -> (volume, path-in-container)
     known: list[tuple[str, str, str]] = [
-        ("ho-agent-memory-db", "ho_agent_memory_data", "/var/lib/postgresql"),
-        ("ho-neo4j", "ho_neo4j_data", "/data"),
-        ("ho-neo4j", "ho_neo4j_logs", "/logs"),
+        ("brb-agent-memory-db", "ho_agent_memory_data", "/var/lib/postgresql"),
+        ("brb-neo4j", "ho_neo4j_data", "/data"),
+        ("brb-neo4j", "ho_neo4j_logs", "/logs"),
     ]
     sizes: dict[str, str] = {}
     for container, vol, dest in known:
@@ -134,7 +134,7 @@ async def _db_counts() -> dict[str, int]:
 
 def main() -> None:
     print("=" * 60)
-    print("  HO LOCAL ANALYTICS")
+    print("  BRB LOCAL ANALYTICS")
     print("=" * 60)
 
     print("\n-- Disk Usage --")
