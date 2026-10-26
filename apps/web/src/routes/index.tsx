@@ -13,7 +13,6 @@ import {
   ThroughputChart,
 } from "@/components/pixel-diagrams";
 import { ArrowIcon, LeafIcon, MoonIcon } from "@/components/pixel-icons";
-import { PixelSword } from "@/components/pixel-sword";
 import { JOBS } from "@/lib/jobs-data";
 
 const TITLE = "BRB · A job search engine that learns";
@@ -244,14 +243,14 @@ function Landing() {
         </header>
 
         {/* Hero */}
-        <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-24 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+        <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 pt-8 pb-12 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:gap-8 sm:pt-10 lg:gap-16 lg:pt-16 lg:pb-24">
           <div>
-            <h1 className="text-4xl leading-[1.15] sm:text-6xl">
+            <h1 className="text-4xl leading-[1.15] sm:text-[clamp(2rem,4.5vw,3.75rem)]">
               A job search
               <br />
               that learns.
             </h1>
-            <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
+            <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed sm:text-base lg:text-lg">
               BRB scans the web for fresh roles, ranks them against your real
               experience and tells you plainly what to apply for.
             </p>
@@ -268,7 +267,7 @@ function Landing() {
               </Link>
             </div>
           </div>
-          <div className="relative mx-auto w-full max-w-md">
+          <div className="relative mx-auto w-full max-w-md min-w-0">
             {/* <HeroJobCarousel /> */}
             <HeroJobCard blockSize={8} duration={1800} />
           </div>
@@ -403,71 +402,103 @@ function Landing() {
 
       <MarketingSections />
 
-      <section className="mx-auto max-w-6xl pb-16">
-        <div className="glass rounded-[1.8rem] px-6 py-14 text-center sm:py-20">
-          <h2 className="text-3xl sm:text-5xl">
-            Discover. Measure. Adapt. Repeat.
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-5 max-w-md">
-            Let BRB do the searching, sorting and second-guessing. You just show
-            up for the interviews.
-          </p>
-          <Link
-            to="/app"
-            className="btn-honey group mx-auto mt-9 inline-flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
-          >
-            Open the assistant
-            <ArrowIcon
-              size={14}
-              className="transition-transform duration-200 group-hover:translate-x-1"
-            />
-          </Link>
-        </div>
-      </section>
-
-      <footer className="mx-auto max-w-6xl pb-10">
-        <div className="glass grid gap-8 rounded-[1.8rem] p-6 sm:grid-cols-2 sm:p-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
-          <div>
-            <Link to="/" className="flex items-center gap-2">
-              <BrandIcon />
-              <span className="font-pixel text-lg">BRB</span>
+      <footer className="mx-auto max-w-6xl pt-4 pb-10">
+        <div className="pixel-footer relative overflow-hidden">
+          <div aria-hidden className="pixel-footer-checks h-3" />
+          <div className="border-moss/25 grid items-center gap-6 border-b-2 border-dashed px-6 py-10 sm:px-8 lg:grid-cols-[1fr_auto] lg:px-10">
+            <div>
+              <p className="font-pixel text-moss text-xs tracking-widest">
+                NEXT LEVEL: YOUR NEXT ROLE
+              </p>
+              <h2 className="mt-4 max-w-xl text-3xl leading-tight sm:text-4xl">
+                A little less searching.
+                <br />A lot more possibility.
+              </h2>
+              <p className="text-muted-foreground mt-4 max-w-lg leading-relaxed">
+                Let BRB find the roles that fit. Save your energy for what comes
+                next.
+              </p>
+            </div>
+            <Link
+              to="/app"
+              className="pixel-footer-cta font-pixel bg-honey text-primary-foreground inline-flex min-h-12 w-fit items-center gap-3 px-5 py-3 text-sm"
+            >
+              Start your next chapter
+              <ArrowIcon size={14} />
             </Link>
-            <p className="text-muted-foreground mt-3 max-w-xs text-sm leading-relaxed">
-              A job search that learns. Open source.
+          </div>
+          <div className="grid gap-8 px-6 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-10">
+            <div>
+              <Link to="/" className="inline-flex items-center gap-2">
+                <BrandIcon />
+                <span className="font-pixel text-xl">BRB</span>
+              </Link>
+              <p className="text-muted-foreground mt-3 max-w-xs text-sm leading-relaxed">
+                A job search that learns.
+                <br />
+                Built with care. Shared in the open.
+              </p>
+              <div aria-hidden className="mt-5 flex gap-1.5">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`size-2 ${i % 3 === 0 ? "bg-honey" : "bg-moss/50"}`}
+                  />
+                ))}
+              </div>
+            </div>
+            {FOOTER.map((col) => (
+              <nav key={col.h} aria-label={col.h}>
+                <p className="font-pixel text-sm">{col.h}</p>
+                <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
+                  {col.links.map((l) => (
+                    <li key={l.t}>
+                      {l.href === "/app" ? (
+                        <Link
+                          to="/app"
+                          className="pixel-footer-link hover:text-foreground inline-flex min-h-9 items-center gap-2"
+                        >
+                          <span aria-hidden className="font-pixel text-moss">
+                            +
+                          </span>
+                          {l.t}
+                        </Link>
+                      ) : (
+                        <a
+                          href={l.href}
+                          {...(l.href.startsWith("http")
+                            ? { rel: "noreferrer", target: "_blank" }
+                            : {})}
+                          className="pixel-footer-link hover:text-foreground inline-flex min-h-9 items-center gap-2"
+                        >
+                          <span aria-hidden className="font-pixel text-moss">
+                            +
+                          </span>
+                          {l.t}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
+          <div className="border-moss/25 text-muted-foreground mx-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t-2 border-dashed py-5 text-xs sm:mx-8 lg:mx-10">
+            <p>© {new Date().getUTCFullYear()} BRB. All rights reserved.</p>
+            <p className="font-pixel inline-flex items-center gap-2">
+              <span aria-hidden className="bg-moss size-2" />
+              Made by{" "}
+              <a
+                className="underline underline-offset-4"
+                href="https://przknv.cc"
+                target="_blank"
+                rel="noreferrer"
+              >
+                pzk
+              </a>
             </p>
           </div>
-          {FOOTER.map((col) => (
-            <div key={col.h}>
-              <p className="font-pixel text-sm">{col.h}</p>
-              <ul className="text-muted-foreground mt-3 space-y-2 text-sm">
-                {col.links.map((l) => (
-                  <li key={l.t}>
-                    {l.href === "/app" ? (
-                      <Link
-                        to="/app"
-                        className="hover:text-foreground transition-colors"
-                      >
-                        {l.t}
-                      </Link>
-                    ) : (
-                      <a
-                        href={l.href}
-                        {...(l.href.startsWith("http")
-                          ? { rel: "noreferrer", target: "_blank" }
-                          : {})}
-                        className="hover:text-foreground transition-colors"
-                      >
-                        {l.t}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div className="flex items-center justify-center sm:col-span-2 lg:col-span-1">
-            <PixelSword />
-          </div>
+          <div aria-hidden className="pixel-footer-ground h-4" />
         </div>
       </footer>
     </div>
