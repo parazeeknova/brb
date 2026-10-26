@@ -103,6 +103,39 @@ def wait_for_healthy_image(client: Dokploy, app_name: str, image: str) -> None:
     raise TimeoutError(f"No healthy container for the expected {app_name} image")
 
 
+def wait_for_migration(
+    client: Dokploy, app_name: str, image: str, previous_containers: set[str]
+) -> None:
+    # Dokploy's deployment status means Swarm accepted the service. A one-shot
+    # migration is successful only after its NEW container actually exits zero.
+    deadline = time.monotonic() + 900
+    while time.monotonic() < deadline:
+        containers = client.request("docker.getContainers")
+        fresh = [
+            c
+            for c in containers
+            if c.get("name", "").startswith(f"{app_name}.")
+            and c.get("image") == image
+            and c.get("containerId") not in previous_containers
+        ]
+        for container in fresh:
+            config = client.request("docker.getConfig", containerId=container["containerId"])
+            if isinstance(config, str):
+                config = json.loads(config)
+            if isinstance(config, list):
+                config = config[0]
+            state = config["State"]
+            if state.get("Running") or state.get("Status") == "created":
+                continue
+            if state.get("Status") in ("exited", "dead"):
+                if state.get("ExitCode") != 0 or state.get("OOMKilled"):
+                    raise RuntimeError("Prisma migration container failed; app rollout blocked")
+                print("Prisma migrations applied and schema verified (container exited 0).")
+                return
+        time.sleep(10)
+    raise TimeoutError("Prisma migration container did not complete within 15 minutes")
+
+
 def verify_web(url: str, sha: str) -> None:
     for _ in range(36):
         response = subprocess.run(
@@ -123,6 +156,7 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--web", action="store_true")
     parser.add_argument("--ingest", action="store_true")
+    parser.add_argument("--migrations", action="store_true")
     args = parser.parse_args()
     client = Dokploy()
     project_id = os.environ["DOKPLOY_PROJECT_ID"]
@@ -132,12 +166,33 @@ def main() -> None:
     ingest = client.request("application.one", applicationId=ingest_id)
     assert_project(web, project_id)
     assert_project(ingest, project_id)
+    prisma_id = os.environ["DOKPLOY_PRISMA_APP_ID"]
+    prisma = client.request("application.one", applicationId=prisma_id)
+    assert_project(prisma, project_id)
     if args.check:
-        print("Dokploy credentials and both BRB deployment targets verified.")
+        print("Dokploy credentials and all three BRB deployment targets verified.")
         return
     sha = os.environ["GITHUB_SHA"]
     owner = os.environ["GITHUB_REPOSITORY_OWNER"].lower()
     title = f"GitHub main {sha[:12]}"
+    if args.web or args.ingest or args.migrations:
+        # No dependent rollout can bypass schema readiness, including retries
+        # of an apps-only deployment after a failed migration.
+        image = f"ghcr.io/{owner}/brb-prisma-sync:sha-{sha}"
+        previous_containers = {
+            c["containerId"]
+            for c in client.request("docker.getContainers")
+            if c.get("name", "").startswith(f"{prisma['appName']}.")
+        }
+        previous_deployments = {
+            d["deploymentId"] for d in client.request("deployment.all", applicationId=prisma_id)
+        }
+        client.request("application.update", {"applicationId": prisma_id, "dockerImage": image})
+        client.request("application.deploy", {"applicationId": prisma_id, "title": title})
+        wait_for_deployment(
+            client, "deployment.all", {"applicationId": prisma_id}, previous_deployments
+        )
+        wait_for_migration(client, prisma["appName"], image, previous_containers)
     if args.web:
         previous = {
             d["deploymentId"] for d in client.request("deployment.all", applicationId=app_id)

@@ -4,7 +4,6 @@ import { JOBS } from "@/lib/jobs-data";
 import {
   AUTOFILL_MINUTES_PER_CREDIT,
   AUTOFILL_TOP_UP,
-  BILLING_PROVIDER,
   PRICING_PLANS,
 } from "@/lib/pricing";
 import { SOURCE_PAGES } from "@/lib/source-pages";
@@ -108,11 +107,6 @@ export function MarketingSections() {
           <p className="text-muted-foreground mt-4 leading-relaxed">
             A free starting point, a student-friendly plan, and more room for an
             active search. Monthly pricing. No annual commitment.
-          </p>
-          <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
-            Proposed launch plans, in USD. Personalized matching, tailoring,
-            autofill and {BILLING_PROVIDER} checkout are coming. The current
-            preview does not charge you.
           </p>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,0 +1,191 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.job_observations",
+    "label": "Create table \"job_observations\"",
+    "summary": "Creates table \"job_observations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "job_observations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"job_observations\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": ["\"public\".\"job_observations\""],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"job_observations\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"job_observations\"",
+        "sql": "CREATE TABLE \"public\".\"job_observations\" (\n  \"created_at\" timestamp DEFAULT (now()),\n  \"direct_posting_verified\" bool DEFAULT false,\n  \"first_seen\" float8 DEFAULT 0,\n  \"freshness_lane\" text DEFAULT 'review',\n  \"last_seen\" float8 DEFAULT 0,\n  \"raw_json\" jsonb DEFAULT '{}'::jsonb,\n  \"snippet\" text DEFAULT '',\n  \"source\" text DEFAULT '' NOT NULL,\n  \"title\" text DEFAULT '',\n  \"url\" text NOT NULL,\n  \"url_hash\" text NOT NULL,\n  \"verification_method\" text DEFAULT '',\n  \"verified\" bool DEFAULT false,\n  CONSTRAINT \"job_observations_pkey\" PRIMARY KEY (\"url_hash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"job_observations\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": ["\"public\".\"job_observations\"", "r", "p"],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"job_observations\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.obs_embeddings",
+    "label": "Create table \"obs_embeddings\"",
+    "summary": "Creates table \"obs_embeddings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "obs_embeddings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"obs_embeddings\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": ["\"public\".\"obs_embeddings\""],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"obs_embeddings\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"obs_embeddings\"",
+        "sql": "CREATE TABLE \"public\".\"obs_embeddings\" (\n  \"company\" text DEFAULT '' NOT NULL,\n  \"content_hash\" text DEFAULT '' NOT NULL,\n  \"embedded_at\" timestamp DEFAULT (now()),\n  \"title\" text DEFAULT '' NOT NULL,\n  \"url_hash\" text NOT NULL,\n  CONSTRAINT \"obs_embeddings_pkey\" PRIMARY KEY (\"url_hash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"obs_embeddings\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": ["\"public\".\"obs_embeddings\"", "r", "p"],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"obs_embeddings\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.radar_candidates",
+    "label": "Create table \"radar_candidates\"",
+    "summary": "Creates table \"radar_candidates\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "radar_candidates"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"radar_candidates\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": ["\"public\".\"radar_candidates\""],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"radar_candidates\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"radar_candidates\"",
+        "sql": "CREATE TABLE \"public\".\"radar_candidates\" (\n  \"canonical_id\" text NOT NULL,\n  \"company_description\" text DEFAULT '',\n  \"company_news\" text DEFAULT '',\n  \"created_at\" timestamp DEFAULT (now()),\n  \"direct_apply_url\" text DEFAULT '',\n  \"eligibility\" text DEFAULT 'pending',\n  \"extra\" jsonb DEFAULT '{}'::jsonb,\n  \"first_seen\" float8 DEFAULT 0,\n  \"founder_socials\" jsonb DEFAULT '[]'::jsonb,\n  \"founders\" jsonb DEFAULT '[]'::jsonb,\n  \"freshness_lane\" text DEFAULT 'review',\n  \"funding_info\" jsonb DEFAULT '{}'::jsonb,\n  \"funding_stage\" text DEFAULT '',\n  \"is_remote\" bool DEFAULT false,\n  \"jd_summary\" text DEFAULT '',\n  \"last_seen\" float8 DEFAULT 0,\n  \"match_percent\" int4 DEFAULT 0,\n  \"matching_skills\" jsonb DEFAULT '[]'::jsonb,\n  \"missing_skills\" jsonb DEFAULT '[]'::jsonb,\n  \"normalized_company\" text DEFAULT '',\n  \"normalized_location\" text DEFAULT 'Remote',\n  \"normalized_role\" text DEFAULT '',\n  \"osint_signals\" jsonb DEFAULT '[]'::jsonb,\n  \"posted_date\" text DEFAULT '',\n  \"rejection_detail\" text DEFAULT '',\n  \"rejection_reason\" text DEFAULT '',\n  \"role_family\" text DEFAULT 'unknown',\n  \"role_summary\" text DEFAULT '',\n  \"salary_amount\" float4,\n  \"salary_currency\" text DEFAULT '',\n  \"salary_period\" text DEFAULT '',\n  \"salary_raw\" text DEFAULT '',\n  \"shortlist_probability\" int4 DEFAULT 0,\n  \"source\" text DEFAULT '' NOT NULL,\n  \"source_confidence\" float4 DEFAULT 0.5,\n  \"updated_at\" timestamp DEFAULT (now()),\n  \"verdict\" text DEFAULT 'NO_MATCH',\n  \"verified\" bool DEFAULT false,\n  CONSTRAINT \"radar_candidates_pkey\" PRIMARY KEY (\"canonical_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"radar_candidates\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": ["\"public\".\"radar_candidates\"", "r", "p"],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"radar_candidates\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.source_checkpoints",
+    "label": "Create table \"source_checkpoints\"",
+    "summary": "Creates table \"source_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "source_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"source_checkpoints\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": ["\"public\".\"source_checkpoints\""],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"source_checkpoints\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"source_checkpoints\"",
+        "sql": "CREATE TABLE \"public\".\"source_checkpoints\" (\n  \"active\" bool DEFAULT true,\n  \"backoff_until\" float8 DEFAULT 0,\n  \"board_url\" text DEFAULT '',\n  \"company_name\" text DEFAULT '',\n  \"consecutive_empty\" int4 DEFAULT 0,\n  \"consecutive_failures\" int4 DEFAULT 0,\n  \"discovery_origin\" text DEFAULT '',\n  \"last_change_at\" float8 DEFAULT 0 NOT NULL,\n  \"last_polled\" float8 DEFAULT 0,\n  \"last_snapshot_count\" int4 DEFAULT 0,\n  \"last_snapshot_hash\" text DEFAULT '',\n  \"poll_lane\" text DEFAULT 'high' NOT NULL,\n  \"quality_score\" float4 DEFAULT 0.5,\n  \"source_id\" text NOT NULL,\n  \"source_type\" text DEFAULT 'unknown' NOT NULL,\n  \"total_direct_url_rate\" float4 DEFAULT 0,\n  \"total_jobs_produced\" int4 DEFAULT 0,\n  \"updated_at\" timestamp DEFAULT (now()),\n  \"yield_per_poll\" float4 DEFAULT 0 NOT NULL,\n  CONSTRAINT \"source_checkpoints_pkey\" PRIMARY KEY (\"source_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"source_checkpoints\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": ["\"public\".\"source_checkpoints\"", "r", "p"],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"source_checkpoints\""
+        }
+      }
+    ]
+  }
+]

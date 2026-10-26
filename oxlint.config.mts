@@ -10,6 +10,7 @@ export default defineConfig({
     "crawler_out/**",
     "data/**",
     "logs/**",
+    "**/prisma/migrations/snapshots/**",
     "**/src/prisma/contract.d.ts",
     "**/src/prisma/contract.json",
     "azure_dump/**",
