@@ -11,7 +11,6 @@ pre-commit:
       run: bunx oxfmt --check
     ty:
       run: uv run ty check apps/ingest/src apps/ingest/scripts
-    tsc:
     tsc-web:
       run: bun --cwd apps/web typecheck
     version-bump:

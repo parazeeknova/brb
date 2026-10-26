@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { HeroJobCard } from "@/components/hero-job-card";
 import { JobCard } from "@/components/jobs-tab";
 import { HowItWorks, MarketingSections } from "@/components/marketing-sections";
 import {
@@ -10,12 +11,7 @@ import {
   PixelLoop,
   ThroughputChart,
 } from "@/components/pixel-diagrams";
-import {
-  ArrowIcon,
-  LeafIcon,
-  MoonIcon,
-  SparkleIcon,
-} from "@/components/pixel-icons";
+import { ArrowIcon, LeafIcon, MoonIcon } from "@/components/pixel-icons";
 import { PixelSword } from "@/components/pixel-sword";
 import { JOBS } from "@/lib/jobs-data";
 
@@ -83,8 +79,118 @@ const FOOTER: { h: string; links: { t: string; href: string }[] }[] = [
   },
 ];
 
+const HIRING_COMPANIES: {
+  name: string;
+  file: string;
+  darkFile?: string;
+  width: number;
+  lightenInDark?: boolean;
+}[] = [
+  { file: "google", name: "Google", width: 44 },
+  { file: "microsoft", name: "Microsoft", width: 44 },
+  { file: "meta", name: "Meta", width: 64 },
+  { file: "amazon", lightenInDark: true, name: "Amazon", width: 112 },
+  { darkFile: "apple-dark", file: "apple", name: "Apple", width: 38 },
+  { darkFile: "nvidia-dark", file: "nvidia", name: "NVIDIA", width: 60 },
+  { darkFile: "openai-dark", file: "openai", name: "OpenAI", width: 44 },
+  {
+    darkFile: "anthropic-dark",
+    file: "anthropic",
+    name: "Anthropic",
+    width: 44,
+  },
+  { file: "adobe", name: "Adobe", width: 50 },
+  { file: "netflix", name: "Netflix", width: 44 },
+  { file: "tesla", name: "Tesla", width: 44 },
+  { file: "spotify", name: "Spotify", width: 44 },
+  { file: "oracle", name: "Oracle", width: 150 },
+  { file: "salesforce", name: "Salesforce", width: 64 },
+  { file: "intel", name: "Intel", width: 44 },
+  { file: "ibm", name: "IBM", width: 104 },
+  { darkFile: "cisco-dark", file: "cisco", name: "Cisco", width: 78 },
+  { darkFile: "uber-dark", file: "uber", name: "Uber", width: 102 },
+  { file: "airbnb", name: "Airbnb", width: 42 },
+  { file: "atlassian", name: "Atlassian", width: 44 },
+];
+
+// eslint-disable-next-line no-unused-vars
+function HeroJobCarousel() {
+  const renderCards = (jobs: typeof JOBS, duplicate = false) => (
+    <div
+      aria-hidden={duplicate || undefined}
+      className={`hero-carousel-group ${duplicate ? "hero-carousel-group--duplicate" : ""}`}
+      inert={duplicate}
+    >
+      {jobs.map((job, i) => (
+        <div className="hero-carousel-slide" key={job.id}>
+          <JobCard job={job} i={i} />
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div
+      aria-label="Job matches"
+      className="hero-carousel focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
+      role="region"
+      tabIndex={0}
+    >
+      <div className="hero-carousel-track">
+        {renderCards(JOBS)}
+        {renderCards(JOBS, true)}
+      </div>
+    </div>
+  );
+}
+
+function CompaniesHiringCarousel({ dark }: { dark: boolean }) {
+  const renderLogos = (duplicate = false) => (
+    <div
+      aria-hidden={duplicate || undefined}
+      className="logo-marquee-set"
+      inert={duplicate}
+    >
+      {HIRING_COMPANIES.map((company) => (
+        <img
+          alt={duplicate ? "" : `${company.name} logo`}
+          className={`logo-marquee-image ${company.lightenInDark ? "logo-marquee-image--lighten-in-dark" : ""}`}
+          decoding="async"
+          height={44}
+          key={company.file}
+          src={`/company-logos/${dark && company.darkFile ? company.darkFile : company.file}.svg`}
+          width={company.width}
+        />
+      ))}
+    </div>
+  );
+
+  return (
+    <section
+      aria-labelledby="companies-hiring-title"
+      className="mx-auto max-w-6xl pb-24"
+    >
+      <h2
+        className="font-pixel text-muted-foreground text-center text-sm tracking-wide"
+        id="companies-hiring-title"
+      >
+        Companies Hiring
+      </h2>
+      <div
+        aria-label="Companies hiring"
+        className="logo-marquee mt-6"
+        role="region"
+      >
+        <div className="logo-marquee-track">
+          {renderLogos()}
+          {renderLogos(true)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Landing() {
-  const [heroJob] = JOBS;
   const [dusk, setDusk] = useState(false);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dusk);
@@ -92,70 +198,84 @@ function Landing() {
 
   return (
     <div className="min-h-dvh px-4 sm:px-8">
-      <header className="mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
-        <Link to="/" className="flex items-center gap-2">
-          <LeafIcon size={20} className="text-moss" />
-          <span className="font-pixel text-lg">HO</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDusk((d) => !d)}
-            aria-label={dusk ? "Switch to light" : "Switch to dark"}
-            className={`glass grid size-10 place-items-center rounded-full transition-colors ${dusk ? "text-honey" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <MoonIcon size={16} />
-          </button>
-          <Link
-            to="/app"
-            className="btn-honey group flex h-10 items-center gap-2 rounded-full px-5 text-sm font-bold"
-          >
-            Open assistant
-            <ArrowIcon
-              size={12}
-              className="transition-transform duration-200 group-hover:translate-x-1"
+      <div className="hero-stage relative isolate -mx-4 overflow-hidden px-4 sm:-mx-8 sm:px-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+        >
+          {Array.from({ length: 14 }, (_, i) => (
+            <LeafIcon
+              key={i}
+              size={12 + (i % 3) * 4}
+              className={`hero-leaf absolute top-0 ${i % 4 === 0 ? "text-honey" : "text-moss"}`}
+              style={{
+                animationDelay: `${-(i * 1.1)}s`,
+                animationDuration: `${10 + (i % 5) * 2}s`,
+                left: `${((i + 0.5) / 14) * 100}%`,
+              }}
             />
-          </Link>
+          ))}
         </div>
-      </header>
-
-      {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-24 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-        <div>
-          <h1 className="text-4xl leading-[1.15] sm:text-6xl">
-            A job search
-            <br />
-            that learns.
-          </h1>
-          <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
-            HO, the Hyperdimensional Orchestrator, scans the web for fresh
-            roles, ranks them against your real experience and tells you plainly
-            what to apply for.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-5">
+        <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between py-5 sm:py-6">
+          <Link to="/" className="flex items-center gap-2">
+            <LeafIcon size={20} className="text-moss" />
+            <span className="font-pixel text-lg">HO</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDusk((d) => !d)}
+              aria-label={dusk ? "Switch to light" : "Switch to dark"}
+              className={`glass grid size-10 place-items-center rounded-full transition-colors ${dusk ? "text-honey" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <MoonIcon size={16} />
+            </button>
             <Link
               to="/app"
-              className="btn-honey group flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
+              className="btn-honey group flex h-10 items-center gap-2 rounded-full px-5 text-sm font-bold"
             >
-              Meet your assistant
+              Open assistant
               <ArrowIcon
-                size={14}
+                size={12}
                 className="transition-transform duration-200 group-hover:translate-x-1"
               />
             </Link>
-            <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <SparkleIcon size={12} className="text-honey" />
-              12 new matches today
-            </span>
           </div>
-        </div>
-        <div className="relative mx-auto w-full max-w-md">
-          <div className="bubble-bot mb-4 ml-6 rounded-[1.25rem] rounded-bl-md px-4 py-3 text-[15px] leading-relaxed">
-            Fernwood Labs is a strong fit. Their event pipeline looks a lot like
-            your log processor.
+        </header>
+
+        {/* Hero */}
+        <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-24 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+          <div>
+            <h1 className="text-4xl leading-[1.15] sm:text-6xl">
+              A job search
+              <br />
+              that learns.
+            </h1>
+            <p className="text-muted-foreground mt-6 max-w-md text-lg leading-relaxed">
+              HO, the Hyperdimensional Orchestrator, scans the web for fresh
+              roles, ranks them against your real experience and tells you
+              plainly what to apply for.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-5">
+              <Link
+                to="/app"
+                className="btn-honey group flex h-12 items-center gap-2 rounded-2xl px-6 font-bold"
+              >
+                Meet your assistant
+                <ArrowIcon
+                  size={14}
+                  className="transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </Link>
+            </div>
           </div>
-          {heroJob === undefined ? null : <JobCard job={heroJob} i={0} />}
-        </div>
-      </section>
+          <div className="relative mx-auto w-full max-w-md">
+            {/* <HeroJobCarousel /> */}
+            <HeroJobCard blockSize={8} duration={1800} />
+          </div>
+        </section>
+      </div>
+
+      <CompaniesHiringCarousel dark={dusk} />
 
       {/* Why */}
       <section className="mx-auto max-w-6xl pb-24">
