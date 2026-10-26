@@ -66,19 +66,24 @@ class StreamBus:
             except Exception as exc:
                 if "BUSYGROUP" not in str(exc):
                     raise
-            if stream not in (STREAM_GATED, STREAM_DLQ):
-                groups = await self.redis.xinfo_groups(stream)
-                floors = []
-                for group in groups:
-                    pending = await self.redis.xpending(stream, group["name"])
-                    floor = pending.get("min")
-                    if not floor:
-                        ms, seq = group["last-delivered-id"].split("-")
-                        floor = f"{ms}-{int(seq) + 1}"
-                    floors.append(tuple(map(int, floor.split("-"))))
-                if floors:
-                    ms, seq = min(floors)
-                    await self.redis.xtrim(stream, minid=f"{ms}-{seq}", approximate=False)
+            await self.compact_completed(stream)
+
+    async def compact_completed(self, stream: str) -> None:
+        """Remove old acknowledged history below every group's safe cursor."""
+        if stream in (STREAM_GATED, STREAM_DLQ):
+            return
+        groups = await self.redis.xinfo_groups(stream)
+        floors = []
+        for group in groups:
+            pending = await self.redis.xpending(stream, group["name"])
+            floor = pending.get("min")
+            if not floor:
+                ms, seq = group["last-delivered-id"].split("-")
+                floor = f"{ms}-{int(seq) + 1}"
+            floors.append(tuple(map(int, floor.split("-"))))
+        if floors:
+            ms, seq = min(floors)
+            await self.redis.xtrim(stream, minid=f"{ms}-{seq}", approximate=False)
 
     async def publish(self, stream: str, fields: dict[str, str]) -> str:
         """Append work without trimming unfinished messages.
@@ -135,6 +140,9 @@ class StreamBus:
         reclaimed = 0
         for stream in (STREAM_DISCOVER, STREAM_RAW, STREAM_GATED, STREAM_EMBED, STREAM_ENRICH):
             reclaimed += await self.reap_stream(stream)
+            # Reclaiming the oldest pending entry can expose acknowledged
+            # history from older builds. Remove it before measuring backlog.
+            await self.compact_completed(stream)
         return reclaimed
 
     async def _requeue(self, stream: str, entry_id: str, fields: dict, deliveries: int) -> None:
