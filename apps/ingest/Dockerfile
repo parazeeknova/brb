@@ -20,7 +20,7 @@ ENV PYTHONPATH=/app:/app/apps/ingest \
   PATH="/app/.venv/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
+    ca-certificates curl libstdc++6 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv /app/.venv
@@ -28,8 +28,10 @@ COPY --from=builder /ms-playwright /ms-playwright
 COPY --from=builder /app/pyproject.toml /app/uv.lock ./
 COPY apps ./apps
 
-RUN useradd -m -u 1001 hosvc \
-  && chown -R hosvc:hosvc /app /ms-playwright /home/hosvc
-USER hosvc
+RUN python -m playwright install-deps chromium
+
+RUN useradd -m -u 1001 brbsvc \
+  && chown -R brbsvc:brbsvc /app /ms-playwright /home/brbsvc
+USER brbsvc
 
 CMD ["python", "-m", "src.pipeline.run"]

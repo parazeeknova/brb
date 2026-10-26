@@ -13,13 +13,42 @@ import {
 } from "./pixel-icons";
 
 export function JobCard({ job, i }: { job: Job; i: number }) {
+  let fitLabel = job.fit ? "Good fit" : "Bad fit";
+  if (job.illustrative) {
+    fitLabel = job.fit ? "Example fit" : "Review fit";
+  }
   return (
     <article
       className="glass card-lift rise flex flex-col gap-4 rounded-[1.4rem] p-5"
       style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
     >
       <div className="flex items-center gap-3">
-        <PixelLogo name={job.company} hue={job.hue} />
+        {job.logo ? (
+          <span className="glass grid size-11 shrink-0 place-items-center rounded-xl p-2">
+            <img
+              src={job.logo}
+              alt=""
+              width={28}
+              height={28}
+              className={
+                job.logoDark
+                  ? "size-7 object-contain dark:hidden"
+                  : "size-7 object-contain"
+              }
+            />
+            {job.logoDark && (
+              <img
+                src={job.logoDark}
+                alt=""
+                width={28}
+                height={28}
+                className="hidden size-7 object-contain dark:block"
+              />
+            )}
+          </span>
+        ) : (
+          <PixelLogo name={job.company} hue={job.hue} />
+        )}
         <div className="min-w-0">
           <p className="truncate font-bold">{job.company}</p>
           <p className="text-muted-foreground text-xs">Found on {job.source}</p>
@@ -27,7 +56,7 @@ export function JobCard({ job, i }: { job: Job; i: number }) {
         <span
           className={`gem font-pixel ml-auto shrink-0 px-3 py-1 text-[11px] ${job.fit ? "gem-fit" : "gem-misfit"}`}
         >
-          {job.fit ? "Good fit" : "Bad fit"}
+          {fitLabel}
         </span>
       </div>
 
@@ -63,7 +92,7 @@ export function JobCard({ job, i }: { job: Job; i: number }) {
         rel="noreferrer"
         className="btn-honey group mt-auto flex h-11 items-center justify-center gap-2 rounded-[0.9rem] font-bold"
       >
-        Apply
+        {job.illustrative ? "View role" : "Apply"}
         <ArrowIcon
           size={14}
           className="transition-transform duration-200 group-hover:translate-x-1"

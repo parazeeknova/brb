@@ -14,21 +14,47 @@ import {
 } from "@/components/pixel-diagrams";
 import { ArrowIcon, LeafIcon, MoonIcon } from "@/components/pixel-icons";
 import { JOBS } from "@/lib/jobs-data";
+import { pageSeo, SITE_URL, structuredData } from "@/lib/seo";
 
-const TITLE = "BRB · A job search engine that learns";
+const TITLE = "BRB — AI job search & career discovery";
 const DESC =
-  "BRB discovers jobs across the web, ranks them against real experience, writes grounded applications and learns from every outcome.";
+  "Explore BRB, an open-source AI job search project. Discover employer career sites, learn how to assess roles, and preview experience-based job matching.";
 
 export const Route = createFileRoute("/")({
   component: Landing,
   head: () => ({
-    meta: [
-      { title: TITLE },
-      { content: DESC, name: "description" },
-      { content: TITLE, property: "og:title" },
-      { content: DESC, property: "og:description" },
-      { content: "website", property: "og:type" },
-      { content: "summary_large_image", name: "twitter:card" },
+    ...pageSeo(TITLE, DESC),
+    scripts: [
+      structuredData({
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@id": `${SITE_URL}/#organization`,
+            "@type": "Organization",
+            logo: `${SITE_URL}/favicon.svg`,
+            name: "BRB",
+            sameAs: ["https://github.com/parazeeknova/brb"],
+            url: SITE_URL,
+          },
+          {
+            "@id": `${SITE_URL}/#website`,
+            "@type": "WebSite",
+            description: DESC,
+            inLanguage: "en",
+            name: "BRB",
+            publisher: { "@id": `${SITE_URL}/#organization` },
+            url: SITE_URL,
+          },
+          {
+            "@id": `${SITE_URL}/#webpage`,
+            "@type": "WebPage",
+            description: DESC,
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+            name: TITLE,
+            url: SITE_URL,
+          },
+        ],
+      }),
     ],
   }),
 });
@@ -270,6 +296,10 @@ function Landing() {
           <div className="relative mx-auto w-full max-w-md min-w-0">
             {/* <HeroJobCarousel /> */}
             <HeroJobCard blockSize={8} duration={1800} />
+            <p className="text-muted-foreground mt-4 text-center text-xs leading-relaxed">
+              Real employer listings checked October 26, 2026. Fit notes
+              illustrate an example profile. Availability may change.
+            </p>
           </div>
         </section>
       </div>
@@ -402,6 +432,44 @@ function Landing() {
 
       <MarketingSections />
 
+      <section aria-labelledby="faq-title" className="mx-auto max-w-4xl pb-20">
+        <p className="font-pixel text-moss text-sm">BEFORE YOUR NEXT CHAPTER</p>
+        <h2 id="faq-title" className="mt-3 text-3xl sm:text-4xl">
+          A few good questions.
+        </h2>
+        <div className="mt-8 space-y-3">
+          {[
+            {
+              a: "BRB is an open-source job discovery and matching project. It brings together employer postings and explores how your real experience can help you decide which roles deserve your time.",
+              q: "What is BRB?",
+            },
+            {
+              a: "The featured examples link to real employer postings on Ashby and Greenhouse. Our source guides also cover LinkedIn, Y Combinator, Workday and Lever. Listings may change or close, so always check the employer's original page.",
+              q: "Where do the job examples come from?",
+            },
+            {
+              a: "The notes on this landing page illustrate an example candidate profile. They are not an assessment of your experience or a guarantee of eligibility. Use the full role requirements to make your own decision.",
+              q: "Are the fit notes personalized to me?",
+            },
+            {
+              a: "Yes. View role opens the employer's original posting, where you can confirm availability and follow its application process. BRB is independent of the employers and job platforms shown here.",
+              q: "Can I apply to the featured roles?",
+            },
+            {
+              a: "Yes. You can explore the code, follow development and report issues in the parazeeknova/brb GitHub repository linked below.",
+              q: "Is BRB open source?",
+            },
+          ].map((faq) => (
+            <details key={faq.q} className="glass rounded-2xl px-5 py-4">
+              <summary className="cursor-pointer font-bold">{faq.q}</summary>
+              <p className="text-muted-foreground mt-3 leading-relaxed">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <footer className="mx-auto max-w-6xl pt-4 pb-10">
         <div className="pixel-footer relative overflow-hidden">
           <div aria-hidden className="pixel-footer-checks h-3" />
@@ -421,7 +489,7 @@ function Landing() {
             </div>
             <Link
               to="/app"
-              className="pixel-footer-cta font-pixel bg-honey text-primary-foreground inline-flex min-h-12 w-fit items-center gap-3 px-5 py-3 text-sm"
+              className="btn-honey group inline-flex min-h-12 w-fit items-center gap-3 rounded-2xl px-6 py-3 font-bold"
             >
               Start your next chapter
               <ArrowIcon size={14} />

@@ -14,6 +14,7 @@ export const Route = createFileRoute("/profile")({
   component: Profile,
   head: () => ({
     meta: [
+      { content: "noindex,follow", name: "robots" },
       { title: "BRB · Your profile" },
       {
         content:

@@ -69,13 +69,15 @@ async def test_ensure_groups_idempotent_and_depths() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reap_stream_dlqs_hopeless_entry() -> None:
+async def test_reap_stream_dlqs_hopeless_entry(monkeypatch) -> None:
     client = _redis_or_skip()
     try:
         await client.ping()
     except Exception:
         pytest.skip("no local redis")
     stream = f"ho:test:{uuid.uuid4().hex[:8]}"
+    dlq_stream = f"{stream}:dlq"
+    monkeypatch.setattr("src.stream.bus.STREAM_DLQ", dlq_stream)
     group = group_for(stream)
     bus = StreamBus(client, maxlen=100, block_ms=200, claim_idle_ms=1, max_deliveries=1)
     try:
@@ -88,16 +90,12 @@ async def test_reap_stream_dlqs_hopeless_entry() -> None:
         reclaimed = await bus.reap_stream(stream)
         assert reclaimed == 1
         # Hopeless entry moved to the DLQ and acked off the stream.
-        dlq = await client.xrange("ho:s:dlq", count=20)
+        dlq = await client.xrange(dlq_stream, count=20)
         assert any(fields.get("origin_stream") == stream for _eid, fields in dlq), (
             "expected DLQ record"
         )
     finally:
-        await client.delete(stream)
-        # Clean any DLQ rows this test created.
-        for eid, fields in await client.xrange("ho:s:dlq", count=100):
-            if fields.get("origin_stream") == stream:
-                await client.xdel("ho:s:dlq", eid)
+        await client.delete(stream, dlq_stream)
         await client.aclose()
 
 

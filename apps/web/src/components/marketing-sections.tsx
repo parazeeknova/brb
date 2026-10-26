@@ -2,26 +2,17 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { JOBS } from "@/lib/jobs-data";
+import { SOURCE_PAGES } from "@/lib/source-pages";
 
 import { JobCard } from "./jobs-tab";
 import { LearningCurve } from "./pixel-diagrams";
 import {
   ArrowIcon,
   LeafIcon,
-  PixelLogo,
   SearchIcon,
   SendIcon,
   SparkleIcon,
 } from "./pixel-icons";
-
-const SOURCES = [
-  { h: 240, n: "LinkedIn" },
-  { h: 45, n: "Y Combinator" },
-  { h: 30, n: "Workday" },
-  { h: 150, n: "Greenhouse" },
-  { h: 200, n: "Lever" },
-  { h: 280, n: "Ashby" },
-];
 
 const STEPS = [
   {
@@ -90,18 +81,29 @@ export function MarketingSections() {
             Jobs from company career sites and job boards, including
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {SOURCES.map((s) => (
-              <span
-                key={s.n}
-                className="engraved flex items-center gap-2.5 rounded-full py-1.5 pr-4 pl-1.5"
+            {SOURCE_PAGES.map((s) => (
+              <Link
+                key={s.slug}
+                to="/sources/$source"
+                params={{ source: s.slug }}
+                className="engraved flex min-h-12 items-center gap-2.5 rounded-full py-1.5 pr-4 pl-1.5 hover:underline"
               >
-                <span className="[&>svg]:size-8">
-                  <PixelLogo name={s.n} hue={s.h} />
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white p-1.5">
+                  <img
+                    src={s.logo}
+                    alt=""
+                    width={28}
+                    height={28}
+                    loading="lazy"
+                    className="max-h-7 w-7 object-contain"
+                  />
                 </span>
-                <span className="font-pixel text-sm">{s.n}</span>
-              </span>
+                <span className="font-pixel text-sm">{s.name}</span>
+              </Link>
             ))}
-            <span className="font-pixel text-moss text-sm">+50 more</span>
+            <span className="font-pixel text-moss text-sm">
+              + employer career pages
+            </span>
           </div>
         </div>
       </section>
