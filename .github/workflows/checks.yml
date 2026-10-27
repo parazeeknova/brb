@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: git fetch origin main --quiet || true
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uvx ruff check .
       - run: uvx ruff format --check .
       - uses: oven-sh/setup-bun@v2.2.0
