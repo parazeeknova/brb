@@ -129,7 +129,11 @@ def wait_for_migration(
                 continue
             if state.get("Status") in ("exited", "dead"):
                 if state.get("ExitCode") != 0 or state.get("OOMKilled"):
-                    raise RuntimeError("Prisma migration container failed; app rollout blocked")
+                    raise RuntimeError(
+                        f"Prisma migration container {container['containerId']} failed "
+                        f"(exit={state.get('ExitCode')}, OOM={bool(state.get('OOMKilled'))}); "
+                        "app rollout blocked"
+                    )
                 print("Prisma migrations applied and schema verified (container exited 0).")
                 return
         time.sleep(10)
