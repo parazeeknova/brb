@@ -119,7 +119,7 @@ jobs:
         run: python3 scripts/ci/dokploy_deploy.py --check
       - id: repo
         run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v4.6.0
+      - uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
